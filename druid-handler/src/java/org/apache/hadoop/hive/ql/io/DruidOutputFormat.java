@@ -1,19 +1,12 @@
 package org.apache.hadoop.hive.ql.io;
 
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import com.google.inject.Binder;
-import com.google.inject.Injector;
-import com.google.inject.Module;
-import com.google.inject.name.Names;
 import com.metamx.common.Granularity;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
@@ -22,11 +15,7 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.MapInputRowParser;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.data.input.impl.TimestampSpec;
-import io.druid.guice.GuiceInjectors;
-import io.druid.initialization.Initialization;
-import io.druid.query.DruidProcessingConfig;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.segment.column.ColumnConfig;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.indexing.granularity.GranularitySpec;
@@ -34,14 +23,12 @@ import io.druid.segment.indexing.granularity.UniformGranularitySpec;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.segment.realtime.FireDepartmentMetrics;
 import io.druid.segment.realtime.appenderator.Appenderator;
-import io.druid.segment.realtime.appenderator.AppenderatorFactory;
+import io.druid.segment.realtime.appenderator.DefaultOfflineAppenderatorFactory;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.segment.realtime.appenderator.SegmentNotWritableException;
 import io.druid.segment.realtime.appenderator.SegmentsAndMetadata;
 import io.druid.segment.realtime.plumber.Committers;
 import io.druid.segment.realtime.plumber.CustomVersioningPolicy;
-import io.druid.storage.hdfs.HdfsDataSegmentPusher;
-import io.druid.storage.hdfs.HdfsDataSegmentPusherConfig;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
 import org.apache.calcite.adapter.druid.DruidTable;
@@ -77,14 +64,13 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
   private static final String DRUID_MAX_PARTITION_SIZE = "druid.maxPartitionSize";
   private static final Integer DEFAULT_MAX_ROW_IN_MEMORY = 75000;
   private final HiveConf hiveConf = SessionState.get().getConf();
+  private static final int DEFAULT_MAX_PARTITION_SIZE = 5000000;
 
   public static class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritable>,
       org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter
   {
     protected static final Logger log = LoggerFactory.getLogger(DruidRecordWriter.class);
-    private static final int DEFAULT_MAX_PARTITION_SIZE = 5000000;
 
-    private final Injector injector;
     private final DataSchema dataSchema;
     private final Appenderator appenderator;
     private final RealtimeTuningConfig tuningConfig;
@@ -98,64 +84,14 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         final Path segmentLocation
     )
     {
-      injector = Initialization.makeInjectorWithModules(
-          GuiceInjectors.makeStartupInjector(),
-          ImmutableList.<Module>of(new Module()
-                                   {
-                                     @Override
-                                     public void configure(Binder binder)
-                                     {
-                                       binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/indexer");
-                                       binder.bindConstant().annotatedWith(Names.named("servicePort")).to(-1);
-                                       HdfsDataSegmentPusherConfig hdfsDataSegmentPusherConfig = new HdfsDataSegmentPusherConfig();
-                                       hdfsDataSegmentPusherConfig.setStorageDirectory(segmentLocation.toString());
-                                       binder.bind(HdfsDataSegmentPusherConfig.class).toInstance(hdfsDataSegmentPusherConfig);
-                                       binder.bind(DataSegmentPusher.class).to(HdfsDataSegmentPusher.class);
-                                       binder.bind(DruidProcessingConfig.class).toInstance(
-                                           new DruidProcessingConfig()
-                                           {
-                                             @Override
-                                             public String getFormatString()
-                                             {
-                                               return "processing-%s";
-                                             }
 
-                                             @Override
-                                             public int intermediateComputeSizeBytes()
-                                             {
-                                               return 100 * 1024 * 1024;
-                                             }
-
-                                             @Override
-                                             public int getNumThreads()
-                                             {
-                                               return 1;
-                                             }
-
-                                             @Override
-                                             public int columnCacheSizeBytes()
-                                             {
-                                               return 25 * 1024 * 1024;
-                                             }
-                                           }
-                                       );
-                                       binder.bind(ColumnConfig.class).to(DruidProcessingConfig.class);
-                                     }
-                                   }
-          )
+      DefaultOfflineAppenderatorFactory defaultOfflineAppenderatorFactory = new DefaultOfflineAppenderatorFactory(
+          DruidOutputFormatUtils.injector.getInstance(DataSegmentPusher.class),
+          DruidStorageHandlerUtils.JSON_MAPPER,
+          DruidOutputFormatUtils.INDEX_IO,
+          DruidOutputFormatUtils.INDEX_MERGER
       );
-      ObjectMapper objectMapper = injector.getInstance(ObjectMapper.class);
-      AppenderatorFactory defaultOfflineAppenderatorFactory = null;
-      try {
-        defaultOfflineAppenderatorFactory = objectMapper.readerFor(AppenderatorFactory.class)
-                                                        .readValue("{\"type\":\"offline\"}");
-      }
-      catch (IOException e) {
-        Throwables.propagate(e);
-      }
-      this.tuningConfig = Preconditions.checkNotNull(realtimeTuningConfig);
-
-
+      this.tuningConfig = realtimeTuningConfig;
       this.dataSchema = dataSchema;
       appenderator = defaultOfflineAppenderatorFactory.build(
           this.dataSchema,
@@ -220,6 +156,9 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     @Override
     public void write(Writable w) throws IOException
     {
+      if (w == null) {
+        return;
+      }
       DruidWritable record = (DruidWritable) w;
       InputRow inputRow = new MapBasedInputRow(
           Longs.tryParse((String) record.getValue()
@@ -336,16 +275,19 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         new TimestampSpec(DruidTable.DEFAULT_TIMESTAMP_COLUMN, "auto", null),
         new DimensionsSpec(null, null, null)
     ));
+    //maybe infer this instead ?
     final AggregatorFactory[] aggregatorFactories = DruidStorageHandlerUtils.JSON_MAPPER.readValue(
         tableProperties.getProperty(Constants.DRUID_AGGREGATORS),
         AggregatorFactory[].class
     );
+
     final GranularitySpec granularitySpec = new UniformGranularitySpec(
         Granularity.valueOf(segmentGranularity),
         null,
         null
     );
     Map<String, Object> inputParser = DruidStorageHandlerUtils.JSON_MAPPER.convertValue(inputRowParser, Map.class);
+
     final DataSchema dataSchema = new DataSchema(
         dataSource,
         inputParser,
@@ -372,8 +314,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         null
     );
 
-    String maxPartitionSizeString = tableProperties.getProperty(DRUID_MAX_PARTITION_SIZE, null);
-    Integer maxPartitionSize = maxPartitionSizeString == null ? null : Integer.parseInt(maxPartitionSizeString);
+    Integer maxPartitionSize = hiveConf.getInt(DRUID_MAX_PARTITION_SIZE, DEFAULT_MAX_PARTITION_SIZE);
     return new DruidRecordWriter(dataSchema, realtimeTuningConfig, maxPartitionSize, finalOutPath);
   }
 
