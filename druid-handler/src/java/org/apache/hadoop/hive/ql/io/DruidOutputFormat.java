@@ -1,6 +1,7 @@
 package org.apache.hadoop.hive.ql.io;
 
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -76,12 +77,15 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     private final RealtimeTuningConfig tuningConfig;
     private final Map<Long, List<SegmentIdentifier>> segments = new HashMap<>();
     private final Integer maxPartitionSize;
+    private final Path segmentDescriptorDir;
+    private final FileSystem fileSystem;
 
     public DruidRecordWriter(
         DataSchema dataSchema,
         RealtimeTuningConfig realtimeTuningConfig,
         Integer maxPartitionSize,
-        final Path segmentLocation
+        final Path segmentDescriptorDir,
+        final FileSystem fileSystem
     )
     {
 
@@ -101,6 +105,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
       this.maxPartitionSize = maxPartitionSize == null ? DEFAULT_MAX_PARTITION_SIZE : maxPartitionSize;
 
       appenderator.startJob(); // maybe we need to move this out of the constructor
+      this.segmentDescriptorDir = Preconditions.checkNotNull(segmentDescriptorDir.getParent());
+      this.fileSystem = Preconditions.checkNotNull(fileSystem);
     }
 
     private SegmentIdentifier getSegmentIdentifier(DruidWritable druidHiveRecord)
@@ -181,7 +187,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     @Override
     public void close(boolean abort) throws IOException
     {
-      // Assuming we don't need to push the segment if we have to abort
+      // @TODO ask about this abort. Assuming we don't need to push the segment if we have to abort
       if (abort == true) {
         try {
           appenderator.clear(); // this is blocking
@@ -205,24 +211,25 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
             @Override
             public void onSuccess(SegmentsAndMetadata result)
             {
-              // maybe immediately publish after pushing or do it later
               for (DataSegment pushedSegment : result.getSegments()) {
                 try {
-                  log.info("did pushed the segment [%s]", pushedSegment);
-                  // maybe write to disk the segment location to publish ?
+                  final Path segmentOutputPath = makeOutputPath(pushedSegment);
+                  DruidOutputFormatUtils.writeSegmentDescriptor(fileSystem, pushedSegment, segmentOutputPath);
+                  log.info("did pushed the segment [%s] and persisted the descriptor located at [%s]", pushedSegment, segmentOutputPath);
                 }
                 catch (Exception e) {
                   Throwables.propagate(e);
                 }
               }
-
-              log.info("Published [%,d] sinks.", segmentsToPush.size());
+              log.info("Published [%,d] segments.", segmentsToPush.size());
             }
+
 
             @Override
             public void onFailure(Throwable e)
             {
               log.warn(String.format("Failed to push [%,d] segments.", segmentsToPush.size()), e);
+              Throwables.propagate(e);
             }
           }
       );
@@ -257,6 +264,10 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     {
       appenderator.close();
     }
+
+    private Path makeOutputPath(DataSegment pushedSegment) {
+      return new Path(segmentDescriptorDir, String.format("%s.json", pushedSegment.getIdentifier().replace(":", "")));
+    }
   }
 
   @Override
@@ -275,7 +286,6 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         new TimestampSpec(DruidTable.DEFAULT_TIMESTAMP_COLUMN, "auto", null),
         new DimensionsSpec(null, null, null)
     ));
-    //maybe infer this instead ?
     final AggregatorFactory[] aggregatorFactories = DruidStorageHandlerUtils.JSON_MAPPER.readValue(
         tableProperties.getProperty(Constants.DRUID_AGGREGATORS),
         AggregatorFactory[].class
@@ -315,7 +325,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     );
 
     Integer maxPartitionSize = hiveConf.getInt(DRUID_MAX_PARTITION_SIZE, DEFAULT_MAX_PARTITION_SIZE);
-    return new DruidRecordWriter(dataSchema, realtimeTuningConfig, maxPartitionSize, finalOutPath);
+    return new DruidRecordWriter(dataSchema, realtimeTuningConfig, maxPartitionSize, finalOutPath, finalOutPath.getFileSystem(jc));
   }
 
   @Override
