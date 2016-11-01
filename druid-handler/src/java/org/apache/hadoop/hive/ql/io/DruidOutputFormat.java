@@ -1,10 +1,13 @@
 package org.apache.hadoop.hive.ql.io;
 
 
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
 import com.metamx.common.Granularity;
@@ -52,13 +55,14 @@ import org.joda.time.Interval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritable>
 {
@@ -115,6 +119,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
      * This function compute the segment identifier and push the current open segment if max size is reached or the event belongs to the next interval.
      * Note that this function assumes that timestamps are pseudo sorted.
      * This function will close and move to the next segment granularity as soon as it we get an event from the next interval.
+     *
      * @param timestamp event timestamp as long
      *
      * @return segmentIdentifier with respect to the timestamp and maybe push the current open segment.
@@ -171,9 +176,10 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     private void pushSegments(List<SegmentIdentifier> segmentsToPush)
     {
       try {
-        Future<SegmentsAndMetadata> future = appenderator.push(segmentsToPush, committerSupplier.get());
-        SegmentsAndMetadata segmentsAndMetadata = future.get();
+        SegmentsAndMetadata segmentsAndMetadata = appenderator.push(segmentsToPush, committerSupplier.get()).get();
+        final HashSet<String> pushedSegmentIdentifierHashSet = new HashSet<>();
         for (DataSegment pushedSegment : segmentsAndMetadata.getSegments()) {
+          pushedSegmentIdentifierHashSet.add(SegmentIdentifier.fromDataSegment(pushedSegment).getIdentifierAsString());
           final Path segmentOutputPath = makeOutputPath(pushedSegment);
           DruidOutputFormatUtils.writeSegmentDescriptor(fileSystem, pushedSegment, segmentOutputPath);
           log.info(
@@ -181,6 +187,27 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
               pushedSegment,
               segmentOutputPath
           );
+        }
+
+        final HashSet<String> toPushSegmentsHashSet = new HashSet(FluentIterable.from(segmentsToPush)
+                                                                  .transform(new Function<SegmentIdentifier, String>()
+                                                                  {
+                                                                    @Nullable
+                                                                    @Override
+                                                                    public String apply(
+                                                                        @Nullable SegmentIdentifier input
+                                                                    )
+                                                                    {
+                                                                      return input.getIdentifierAsString();
+                                                                    }
+                                                                  })
+                                                                  .toList());
+
+        if (!pushedSegmentIdentifierHashSet.equals(toPushSegmentsHashSet)) {
+          throw new IllegalStateException(String.format("was asked to publish [%s] but was able to publish only [%s]",
+                                                        Joiner.on(", ").join(toPushSegmentsHashSet),
+                                                        Joiner.on(", ").join(pushedSegmentIdentifierHashSet)
+          ));
         }
         log.info("Published [%,d] segments.", segmentsToPush.size());
       }
@@ -232,7 +259,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         appenderator.clear();
       }
       catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
+        Throwables.propagate(e);
       }
       finally {
         appenderator.close();
