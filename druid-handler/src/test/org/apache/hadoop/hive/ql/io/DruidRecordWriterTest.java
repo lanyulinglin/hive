@@ -20,6 +20,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.conf.Constants;
 import org.apache.hadoop.hive.druid.serde.DruidWritable;
 import org.joda.time.DateTime;
 import org.junit.Rule;
@@ -89,6 +90,8 @@ public class DruidRecordWriterTest
     DruidWritable druidWritable = new DruidWritable(ImmutableMap.<String, Object>of(
         DruidTable.DEFAULT_TIMESTAMP_COLUMN,
         String.valueOf(new DateTime().getMillis()),
+        Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME,
+        String.valueOf(Granularity.MINUTE.truncate(new DateTime()).getMillis()),
         "dim",
         "test",
         "met",

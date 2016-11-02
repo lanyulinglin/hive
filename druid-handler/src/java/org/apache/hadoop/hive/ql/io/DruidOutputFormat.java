@@ -17,17 +17,47 @@
  */
 package org.apache.hadoop.hive.ql.io;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.ExecutionException;
-
-import javax.annotation.Nullable;
-
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import com.google.common.base.Throwables;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.primitives.Longs;
+import io.druid.data.input.Committer;
+import io.druid.data.input.InputRow;
+import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.impl.DimensionSchema;
+import io.druid.data.input.impl.DimensionsSpec;
+import io.druid.data.input.impl.InputRowParser;
+import io.druid.data.input.impl.MapInputRowParser;
+import io.druid.data.input.impl.StringDimensionSchema;
+import io.druid.data.input.impl.TimeAndDimsParseSpec;
+import io.druid.data.input.impl.TimestampSpec;
+import io.druid.java.util.common.Granularity;
+import io.druid.java.util.common.IAE;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.DoubleSumAggregatorFactory;
+import io.druid.query.aggregation.LongSumAggregatorFactory;
+import io.druid.segment.indexing.DataSchema;
+import io.druid.segment.indexing.RealtimeTuningConfig;
+import io.druid.segment.indexing.granularity.GranularitySpec;
+import io.druid.segment.indexing.granularity.UniformGranularitySpec;
+import io.druid.segment.loading.DataSegmentPusher;
+import io.druid.segment.realtime.FireDepartmentMetrics;
+import io.druid.segment.realtime.appenderator.Appenderator;
+import io.druid.segment.realtime.appenderator.DefaultOfflineAppenderatorFactory;
+import io.druid.segment.realtime.appenderator.SegmentIdentifier;
+import io.druid.segment.realtime.appenderator.SegmentNotWritableException;
+import io.druid.segment.realtime.appenderator.SegmentsAndMetadata;
+import io.druid.segment.realtime.plumber.Committers;
+import io.druid.segment.realtime.plumber.CustomVersioningPolicy;
+import io.druid.timeline.DataSegment;
+import io.druid.timeline.partition.LinearShardSpec;
 import org.apache.calcite.adapter.druid.DruidTable;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -52,45 +82,15 @@ import org.joda.time.Interval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
-import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Lists;
-import com.google.common.primitives.Longs;
-
-import io.druid.java.util.common.Granularity;
-import io.druid.data.input.Committer;
-import io.druid.data.input.InputRow;
-import io.druid.data.input.MapBasedInputRow;
-import io.druid.data.input.impl.DimensionSchema;
-import io.druid.data.input.impl.DimensionsSpec;
-import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.MapInputRowParser;
-import io.druid.data.input.impl.StringDimensionSchema;
-import io.druid.data.input.impl.TimeAndDimsParseSpec;
-import io.druid.data.input.impl.TimestampSpec;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.DoubleSumAggregatorFactory;
-import io.druid.query.aggregation.LongSumAggregatorFactory;
-import io.druid.segment.indexing.DataSchema;
-import io.druid.segment.indexing.RealtimeTuningConfig;
-import io.druid.segment.indexing.granularity.GranularitySpec;
-import io.druid.segment.indexing.granularity.UniformGranularitySpec;
-import io.druid.segment.loading.DataSegmentPusher;
-import io.druid.segment.realtime.FireDepartmentMetrics;
-import io.druid.segment.realtime.appenderator.Appenderator;
-import io.druid.segment.realtime.appenderator.DefaultOfflineAppenderatorFactory;
-import io.druid.segment.realtime.appenderator.SegmentIdentifier;
-import io.druid.segment.realtime.appenderator.SegmentNotWritableException;
-import io.druid.segment.realtime.appenderator.SegmentsAndMetadata;
-import io.druid.segment.realtime.plumber.Committers;
-import io.druid.segment.realtime.plumber.CustomVersioningPolicy;
-import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.LinearShardSpec;
+import javax.annotation.Nullable;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritable>
 {
@@ -117,6 +117,24 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         final FileSystem fileSystem
     )
     {
+      Properties properties = DruidOutputFormatUtils.injector.getInstance(Properties.class);
+      switch (fileSystem.getScheme()) {
+        case "hdfs":
+          properties.put("druid.storage.type", "hdfs");
+          properties.put("druid.storage.storageDirectory", segmentDescriptorDir.toString());
+          break;
+        case "s3":
+        case "s3n":
+          properties.put("druid.storage.type", "s3");
+          properties.put("druid.storage.storageDirectory", segmentDescriptorDir.toString());
+          break;
+        case "file":
+          properties.put("druid.storage.type", "file");
+          properties.put("druid.storage.storageDirectory", segmentDescriptorDir.toString());
+          break;
+        default:
+          throw new IAE("Unknown file system scheme [%s]", fileSystem.getScheme());
+      }
 
       DefaultOfflineAppenderatorFactory defaultOfflineAppenderatorFactory = new DefaultOfflineAppenderatorFactory(
           DruidOutputFormatUtils.injector.getInstance(DataSegmentPusher.class),
@@ -208,9 +226,11 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
           DruidOutputFormatUtils.writeSegmentDescriptor(fileSystem, pushedSegment, segmentOutputPath);
 
           LOG.info(
-              String.format("Pushed the segment [%s] and persisted the descriptor located at [%s]",
-              pushedSegment,
-              segmentOutputPath)
+              String.format(
+                  "Pushed the segment [%s] and persisted the descriptor located at [%s]",
+                  pushedSegment,
+                  segmentOutputPath
+              )
           );
         }
 
@@ -257,16 +277,28 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
       }
       DruidWritable record = (DruidWritable) w;
       final long timestamp = Longs.tryParse((String) record.getValue().get(DruidTable.DEFAULT_TIMESTAMP_COLUMN));
-      final long truncatedTime = Longs.tryParse((String) record.getValue().get(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME));
+      final long truncatedTime = Longs.tryParse((String) record.getValue()
+                                                               .get(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME));
       // We drop the time granularity column, since we do not need to store it
-      record.getValue().remove(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME);
+      Map event = Maps.filterKeys(record.getValue(), new Predicate<String>()
+      {
+        @Override
+        public boolean apply(@Nullable String input)
+        {
+          if (input.equals(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME)) {
+            return false;
+          }
+          return true;
+        }
+      });
+
       InputRow inputRow = new MapBasedInputRow(
           timestamp,
           dataSchema.getParser()
                     .getParseSpec()
                     .getDimensionsSpec()
                     .getDimensionNames(),
-          record.getValue()
+          event
       );
 
       try {
@@ -327,8 +359,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
   {
 
     final String segmentGranularity = tableProperties.getProperty(Constants.DRUID_SEGMENT_GRANULARITY) != null ?
-        tableProperties.getProperty(Constants.DRUID_SEGMENT_GRANULARITY) :
-          HiveConf.getVar(jc, HiveConf.ConfVars.HIVE_DRUID_INDEXING_GRANULARITY);
+                                      tableProperties.getProperty(Constants.DRUID_SEGMENT_GRANULARITY) :
+                                      HiveConf.getVar(jc, HiveConf.ConfVars.HIVE_DRUID_INDEXING_GRANULARITY);
     final String dataSource = tableProperties.getProperty(Constants.DRUID_DATA_SOURCE);
 
     // Parse the configuration parameters
@@ -343,8 +375,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     }
     if (!columnNames.contains(DruidTable.DEFAULT_TIMESTAMP_COLUMN)) {
       throw new IOException("Timestamp column (' " + DruidTable.DEFAULT_TIMESTAMP_COLUMN +
-              "') not specified in create table; list of columns is : " +
-              jc.get(serdeConstants.LIST_COLUMNS));
+                            "') not specified in create table; list of columns is : " +
+                            jc.get(serdeConstants.LIST_COLUMNS));
     }
     ArrayList<TypeInfo> columnTypes = TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty);
 
@@ -401,7 +433,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
 
     Integer maxPartitionSize = HiveConf.getIntVar(jc, HiveConf.ConfVars.HIVE_DRUID_MAX_PARTITION_SIZE);
     String basePersistDirectory = HiveConf.getVar(jc, HiveConf.ConfVars.HIVE_DRUID_BASE_PERSIST_DIRECTORY);
-    final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig.makeDefaultTuningConfig(new File(basePersistDirectory)).withVersioningPolicy(new CustomVersioningPolicy(null));
+    final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig.makeDefaultTuningConfig(new File(
+        basePersistDirectory)).withVersioningPolicy(new CustomVersioningPolicy(null));
 
     return new DruidRecordWriter(
         dataSchema,
