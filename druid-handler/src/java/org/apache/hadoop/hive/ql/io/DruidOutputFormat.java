@@ -213,23 +213,24 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         }
 
         final HashSet<String> toPushSegmentsHashSet = new HashSet(FluentIterable.from(segmentsToPush)
-                                                                  .transform(new Function<SegmentIdentifier, String>()
-                                                                  {
-                                                                    @Nullable
-                                                                    @Override
-                                                                    public String apply(
-                                                                        @Nullable SegmentIdentifier input
-                                                                    )
-                                                                    {
-                                                                      return input.getIdentifierAsString();
-                                                                    }
-                                                                  })
-                                                                  .toList());
+                                                                                .transform(new Function<SegmentIdentifier, String>()
+                                                                                {
+                                                                                  @Nullable
+                                                                                  @Override
+                                                                                  public String apply(
+                                                                                      @Nullable SegmentIdentifier input
+                                                                                  )
+                                                                                  {
+                                                                                    return input.getIdentifierAsString();
+                                                                                  }
+                                                                                })
+                                                                                .toList());
 
         if (!pushedSegmentIdentifierHashSet.equals(toPushSegmentsHashSet)) {
-          throw new IllegalStateException(String.format("was asked to publish [%s] but was able to publish only [%s]",
-                                                        Joiner.on(", ").join(toPushSegmentsHashSet),
-                                                        Joiner.on(", ").join(pushedSegmentIdentifierHashSet)
+          throw new IllegalStateException(String.format(
+              "was asked to publish [%s] but was able to publish only [%s]",
+              Joiner.on(", ").join(toPushSegmentsHashSet),
+              Joiner.on(", ").join(pushedSegmentIdentifierHashSet)
           ));
         }
         LOG.info("Published [%,d] segments.", segmentsToPush.size());
@@ -390,25 +391,9 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         DruidStorageHandlerUtils.JSON_MAPPER
     );
 
-    // this can be initialized from the hive conf
-    RealtimeTuningConfig realtimeTuningConfig = new RealtimeTuningConfig(
-        HiveConf.getIntVar(jc, HiveConf.ConfVars.HIVE_DRUID_MAX_ROW_IN_MEMORY),
-        null,
-        null,
-        new File("/tmp"),
-        new CustomVersioningPolicy(null),
-        null,
-        null,
-        null,
-        null,
-        null,
-        0,
-        0,
-        null,
-        null
-    );
-
     Integer maxPartitionSize = HiveConf.getIntVar(jc, HiveConf.ConfVars.HIVE_DRUID_MAX_PARTITION_SIZE);
+    String basePersistDirectory = HiveConf.getVar(jc, HiveConf.ConfVars.HIVE_DRUID_BASE_PERSIST_DIRECTORY);
+    final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig.makeDefaultTuningConfig(new File(basePersistDirectory)).withVersioningPolicy(new CustomVersioningPolicy(null));
     return new DruidRecordWriter(
         dataSchema,
         realtimeTuningConfig,

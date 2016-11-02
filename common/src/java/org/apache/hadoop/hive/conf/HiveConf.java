@@ -1919,7 +1919,7 @@ public class HiveConf extends Configuration {
         "number of records of the query results is larger than this threshold, we split the query in\n" +
         "total number of rows/threshold parts across the time dimension. Note that we assume the\n" +
         "records to be split uniformly across the time dimension"),
-
+    HIVE_DRUID_BASE_PERSIST_DIRECTORY("hive.druid.basePersisitDirectory", "/tmp", "local base persist directory used while indexing  data"),
     // For HBase storage handler
     HIVE_HBASE_WAL_ENABLED("hive.hbase.wal.enabled", true,
         "Whether writes to HBase should be forced to the write-ahead log. \n" +
