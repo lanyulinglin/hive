@@ -1921,6 +1921,9 @@ public class HiveConf extends Configuration {
       new TimeValidator(TimeUnit.MILLISECONDS), "Frequency of WriteSet reaper runs"),
 
     // For Druid storage handler
+    HIVE_DRUID_INDEXING_GRANULARITY("hive.druid.indexer.segments.granularity", "day",
+        new PatternSet("year", "quarter", "month", "week", "day", "hour", "minute", "second"),
+        "Granularity for the segments created by the Druid storage handler"),
     HIVE_DRUID_BROKER_DEFAULT_ADDRESS("hive.druid.broker.address.default", "localhost:8082",
         "Address of the Druid broker. If we are querying Druid from Hive, this address needs to be\n" +
         "declared"),
