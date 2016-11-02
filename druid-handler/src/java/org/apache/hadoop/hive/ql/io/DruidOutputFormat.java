@@ -134,7 +134,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
       this.maxPartitionSize = maxPartitionSize;
 
       appenderator.startJob(); // maybe we need to move this out of the constructor
-      this.segmentDescriptorDir = Preconditions.checkNotNull(segmentDescriptorDir.getParent());
+      this.segmentDescriptorDir = Preconditions.checkNotNull(segmentDescriptorDir);
       this.fileSystem = Preconditions.checkNotNull(fileSystem);
       committerSupplier = Suppliers.ofInstance(Committers.nil());
     }
@@ -206,9 +206,9 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
           final Path segmentOutputPath = makeOutputPath(pushedSegment);
           DruidOutputFormatUtils.writeSegmentDescriptor(fileSystem, pushedSegment, segmentOutputPath);
           LOG.info(
-              "Pushed the segment [%s] and persisted the descriptor located at [%s]",
+              String.format("Pushed the segment [%s] and persisted the descriptor located at [%s]",
               pushedSegment,
-              segmentOutputPath
+              segmentOutputPath)
           );
         }
 
@@ -233,7 +233,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
               Joiner.on(", ").join(pushedSegmentIdentifierHashSet)
           ));
         }
-        LOG.info("Published [%,d] segments.", segmentsToPush.size());
+        LOG.info(String.format("Published [%,d] segments.", segmentsToPush.size()));
       }
       catch (InterruptedException e) {
         LOG.error(String.format("got interrupted, failed to push  [%,d] segments.", segmentsToPush.size()), e);
