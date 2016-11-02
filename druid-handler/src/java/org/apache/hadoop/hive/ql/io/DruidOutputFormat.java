@@ -61,11 +61,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
-<<<<<<< HEAD
-import io.druid.java.util.common.Granularity;
-=======
-
->>>>>>> f25a1aa... Recognition of dimensions and metrics
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
@@ -154,13 +149,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
      */
     private SegmentIdentifier getSegmentIdentifierAndMaybePush(long timestamp, long truncatedTime)
     {
-<<<<<<< HEAD
-      final Granularity segmentGranularity;
-      segmentGranularity = dataSchema.getGranularitySpec().getSegmentGranularity();
-      final long truncatedTime = segmentGranularity.truncate(new DateTime(timestamp)).getMillis();
-=======
       final Granularity segmentGranularity = dataSchema.getGranularitySpec().getSegmentGranularity();
->>>>>>> f25a1aa... Recognition of dimensions and metrics
 
       final Interval interval = new Interval(
           new DateTime(truncatedTime),
@@ -215,16 +204,10 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
           pushedSegmentIdentifierHashSet.add(SegmentIdentifier.fromDataSegment(pushedSegment).getIdentifierAsString());
           final Path segmentOutputPath = makeOutputPath(pushedSegment);
           DruidOutputFormatUtils.writeSegmentDescriptor(fileSystem, pushedSegment, segmentOutputPath);
-<<<<<<< HEAD
-          log.info(
-              String.format("Pushed the segment [%s] and persisted the descriptor located at [%s]",
-=======
           LOG.info(
               "Pushed the segment [%s] and persisted the descriptor located at [%s]",
->>>>>>> f25a1aa... Recognition of dimensions and metrics
               pushedSegment,
-              segmentOutputPath)
-          );
+              segmentOutputPath);
         }
 
         final HashSet<String> toPushSegmentsHashSet = new HashSet(FluentIterable.from(segmentsToPush)
@@ -248,11 +231,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
               Joiner.on(", ").join(pushedSegmentIdentifierHashSet)
           ));
         }
-<<<<<<< HEAD
-        log.info(String.format("Published [%,d] segments.", segmentsToPush.size()));
-=======
         LOG.info("Published [%,d] segments.", segmentsToPush.size());
->>>>>>> f25a1aa... Recognition of dimensions and metrics
       }
       catch (InterruptedException e) {
         LOG.error(String.format("got interrupted, failed to push  [%,d] segments.", segmentsToPush.size()), e);
@@ -396,16 +375,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         new TimestampSpec(DruidTable.DEFAULT_TIMESTAMP_COLUMN, "auto", null),
         new DimensionsSpec(dimensions, null, null)
     ));
-<<<<<<< HEAD
 
-    final AggregatorFactory[] aggregatorFactories = DruidStorageHandlerUtils.JSON_MAPPER.readValue(
-        tableProperties.getProperty(Constants.DRUID_AGGREGATORS),
-        AggregatorFactory[].class
-    );
-
-=======
     Map<String, Object> inputParser = DruidStorageHandlerUtils.JSON_MAPPER.convertValue(inputRowParser, Map.class);
->>>>>>> f25a1aa... Recognition of dimensions and metrics
     final GranularitySpec granularitySpec = new UniformGranularitySpec(
         Granularity.valueOf(segmentGranularity),
         null,
@@ -419,31 +390,10 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         DruidStorageHandlerUtils.JSON_MAPPER
     );
 
-    // this can be initialized from the hive conf
-<<<<<<< HEAD
-    String basePersistDirectory = hiveConf.getVar(HiveConf.ConfVars.HIVE_DRUID_BASE_PERSIST_DIRECTORY);
-    final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig.makeDefaultTuningConfig(new File(basePersistDirectory)).withVersioningPolicy(new CustomVersioningPolicy(null));
-    Integer maxPartitionSize = hiveConf.getInt(DRUID_MAX_PARTITION_SIZE, DEFAULT_MAX_PARTITION_SIZE);
-=======
-    RealtimeTuningConfig realtimeTuningConfig = new RealtimeTuningConfig(
-        HiveConf.getIntVar(jc, HiveConf.ConfVars.HIVE_DRUID_MAX_ROW_IN_MEMORY),
-        null,
-        null,
-        new File("/tmp"),
-        new CustomVersioningPolicy(null),
-        null,
-        null,
-        null,
-        null,
-        null,
-        0,
-        0,
-        null,
-        null
-    );
 
     Integer maxPartitionSize = HiveConf.getIntVar(jc, HiveConf.ConfVars.HIVE_DRUID_MAX_PARTITION_SIZE);
->>>>>>> f25a1aa... Recognition of dimensions and metrics
+    String basePersistDirectory = HiveConf.getVar(jc, HiveConf.ConfVars.HIVE_DRUID_BASE_PERSIST_DIRECTORY);
+    final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig.makeDefaultTuningConfig(new File(basePersistDirectory)).withVersioningPolicy(new CustomVersioningPolicy(null));
     return new DruidRecordWriter(
         dataSchema,
         realtimeTuningConfig,
