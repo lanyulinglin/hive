@@ -22,6 +22,7 @@ import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
 import org.apache.hadoop.hive.druid.serde.DruidWritable;
+import org.apache.hadoop.mapred.JobConf;
 import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
@@ -82,10 +83,11 @@ public class DruidRecordWriterTest
 
 
     Configuration config = new Configuration();
+    JobConf jobConf = new JobConf(config);
     LocalFileSystem localFileSystem = FileSystem.getLocal(config);
 
-    druidRecordWriter = new DruidOutputFormat.DruidRecordWriter(dataSchema, tuningConfig, 20, new Path("/tmp/slim/test"), localFileSystem);
 
+    druidRecordWriter = new DruidOutputFormat.DruidRecordWriter(dataSchema, tuningConfig, 20, new Path("/tmp/slim/test"), localFileSystem, jobConf);
     druidRecordWriter.write(null);
     DruidWritable druidWritable = new DruidWritable(ImmutableMap.<String, Object>of(
         DruidTable.DEFAULT_TIMESTAMP_COLUMN,

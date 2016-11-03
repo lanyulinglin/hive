@@ -39,7 +39,6 @@ import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.data.input.impl.TimestampSpec;
 import io.druid.java.util.common.Granularity;
-import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -47,7 +46,6 @@ import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
-import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.segment.realtime.FireDepartmentMetrics;
 import io.druid.segment.realtime.appenderator.Appenderator;
 import io.druid.segment.realtime.appenderator.DefaultOfflineAppenderatorFactory;
@@ -56,10 +54,13 @@ import io.druid.segment.realtime.appenderator.SegmentNotWritableException;
 import io.druid.segment.realtime.appenderator.SegmentsAndMetadata;
 import io.druid.segment.realtime.plumber.Committers;
 import io.druid.segment.realtime.plumber.CustomVersioningPolicy;
+import io.druid.storage.hdfs.HdfsDataSegmentPusher;
+import io.druid.storage.hdfs.HdfsDataSegmentPusherConfig;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
 import org.apache.calcite.adapter.druid.DruidTable;
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
@@ -114,10 +115,11 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         RealtimeTuningConfig realtimeTuningConfig,
         Integer maxPartitionSize,
         final Path segmentDescriptorDir,
-        final FileSystem fileSystem
+        final FileSystem fileSystem,
+        JobConf jobConf
     )
     {
-      Properties properties = DruidOutputFormatUtils.injector.getInstance(Properties.class);
+     /* Properties properties = DruidOutputFormatUtils.injector.getInstance(Properties.class);
       switch (fileSystem.getScheme()) {
         case "hdfs":
           properties.put("druid.storage.type", "hdfs");
@@ -134,10 +136,13 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
           break;
         default:
           throw new IAE("Unknown file system scheme [%s]", fileSystem.getScheme());
-      }
+      }*/
 
+      HdfsDataSegmentPusherConfig config = new HdfsDataSegmentPusherConfig();
+
+      config.setStorageDirectory(segmentDescriptorDir.toString());
       DefaultOfflineAppenderatorFactory defaultOfflineAppenderatorFactory = new DefaultOfflineAppenderatorFactory(
-          DruidOutputFormatUtils.injector.getInstance(DataSegmentPusher.class),
+          new HdfsDataSegmentPusher(config, new Configuration(), DruidStorageHandlerUtils.JSON_MAPPER),
           DruidStorageHandlerUtils.JSON_MAPPER,
           DruidOutputFormatUtils.INDEX_IO,
           DruidOutputFormatUtils.INDEX_MERGER
@@ -436,7 +441,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         realtimeTuningConfig,
         maxPartitionSize,
         finalOutPath,
-        finalOutPath.getFileSystem(jc)
+        finalOutPath.getFileSystem(jc),
+        jc
     );
   }
 
