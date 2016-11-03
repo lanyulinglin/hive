@@ -150,12 +150,6 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>io.druid</groupId>
-      <artifactId>druid-aws-common</artifactId>
-      <version>${druid.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>org.apache.calcite</groupId>
       <artifactId>calcite-druid</artifactId>
       <version>${calcite.version}</version>

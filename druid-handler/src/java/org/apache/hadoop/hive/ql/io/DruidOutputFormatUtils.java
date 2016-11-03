@@ -18,22 +18,13 @@
 package org.apache.hadoop.hive.ql.io;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.google.common.collect.ImmutableList;
-import com.google.inject.Binder;
-import com.google.inject.Injector;
-import com.google.inject.Key;
-import com.google.inject.Module;
-import io.druid.guice.GuiceInjectors;
-import io.druid.guice.JsonConfigProvider;
-import io.druid.guice.annotations.Json;
-import io.druid.guice.annotations.Self;
-import io.druid.guice.annotations.Smile;
-import io.druid.initialization.Initialization;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexMergerV9;
-import io.druid.server.DruidNode;
-import io.druid.storage.hdfs.HdfsStorageDruidModule;
+import io.druid.segment.column.ColumnConfig;
 import io.druid.timeline.DataSegment;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -46,12 +37,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 public class DruidOutputFormatUtils
 {
-  public static final Injector injector;
+  //public static final Injector injector;
   public static final ObjectMapper JSON_MAPPER;
   public static final IndexIO INDEX_IO;
   public static final IndexMerger INDEX_MERGER;
@@ -62,7 +52,7 @@ public class DruidOutputFormatUtils
   private static final int DEFAULT_FS_BUFFER_SIZE = 1 << 18; // 256KB
 
   static {
-    injector = Initialization.makeInjectorWithModules(
+    /*injector = Initialization.makeInjectorWithModules(
         GuiceInjectors.makeStartupInjector(),
         ImmutableList.<Module>of(new Module()
         {
@@ -76,14 +66,21 @@ public class DruidOutputFormatUtils
             );
           }
         }, new HdfsStorageDruidModule())
-    );
+    );*/
     //@TODO // FIXME: 11/2/16 this need to be injected as part of the config. One way of doing this is to extract all the hive.druid and inject it to the properties class
-    injector.getInstance(Properties.class).put("druid.storage.type", "hdfs");
-    JSON_MAPPER = injector.getInstance(Key.get(ObjectMapper.class, Json.class));
-    SMILE_MAPPER = injector.getInstance(Key.get(ObjectMapper.class, Smile.class));
-    INDEX_IO = injector.getInstance(IndexIO.class);
-    INDEX_MERGER = injector.getInstance(IndexMerger.class);
-    INDEX_MERGER_V9 = injector.getInstance(IndexMergerV9.class);
+    //injector.getInstance(Properties.class).put("druid.storage.type", "hdfs");
+    JSON_MAPPER = new DefaultObjectMapper();
+    SMILE_MAPPER = new DefaultObjectMapper(new SmileFactory());
+    INDEX_IO = new IndexIO(JSON_MAPPER, new ColumnConfig()
+    {
+      @Override
+      public int columnCacheSizeBytes()
+      {
+        return 0;
+      }
+    });
+    INDEX_MERGER = new IndexMerger(JSON_MAPPER, INDEX_IO);
+    INDEX_MERGER_V9 = new IndexMergerV9(JSON_MAPPER, INDEX_IO);
   }
 
   /**
