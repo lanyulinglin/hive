@@ -88,7 +88,7 @@ public class DruidOutputFormatUtils
 
   /**
    * @param descriptorInfoDir path to the directory containing the segments descriptor info
-   * @param conf hadoop conf to get the file system
+   * @param conf              hadoop conf to get the file system
    *
    * @return List of DataSegments
    *
@@ -99,11 +99,11 @@ public class DruidOutputFormatUtils
   {
     ImmutableList.Builder<DataSegment> publishedSegmentsBuilder = ImmutableList.builder();
 
-      FileSystem fs = descriptorInfoDir.getFileSystem(conf);
-      for (FileStatus status : fs.listStatus(descriptorInfoDir)) {
-        final DataSegment segment = JSON_MAPPER.readValue(fs.open(status.getPath()), DataSegment.class);
-        publishedSegmentsBuilder.add(segment);
-      }
+    FileSystem fs = descriptorInfoDir.getFileSystem(conf);
+    for (FileStatus status : fs.listStatus(descriptorInfoDir)) {
+      final DataSegment segment = JSON_MAPPER.readValue(fs.open(status.getPath()), DataSegment.class);
+      publishedSegmentsBuilder.add(segment);
+    }
     List<DataSegment> publishedSegments = publishedSegmentsBuilder.build();
     return publishedSegments;
   }
