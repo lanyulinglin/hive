@@ -19,7 +19,11 @@ package org.apache.hadoop.hive.druid.io;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.metamx.emitter.EmittingLogger;
+import com.metamx.emitter.core.NoopEmitter;
+import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
@@ -36,6 +40,8 @@ import org.apache.hadoop.io.retry.RetryProxy;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -81,6 +87,12 @@ public class DruidOutputFormatUtils
     });
     INDEX_MERGER = new IndexMerger(JSON_MAPPER, INDEX_IO);
     INDEX_MERGER_V9 = new IndexMergerV9(JSON_MAPPER, INDEX_IO);
+    try {
+      EmittingLogger.registerEmitter(new ServiceEmitter("druid-hive-indexer", InetAddress.getLocalHost().getHostName(), new NoopEmitter()));
+    }
+    catch (UnknownHostException e) {
+      Throwables.propagate(e);
+    }
   }
 
   /**
