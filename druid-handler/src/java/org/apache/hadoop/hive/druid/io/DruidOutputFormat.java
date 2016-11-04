@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hive.ql.io;
+package org.apache.hadoop.hive.druid.io;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -68,6 +68,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.druid.DruidStorageHandlerUtils;
 import org.apache.hadoop.hive.druid.serde.DruidWritable;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
+import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
@@ -281,9 +282,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         return;
       }
       DruidWritable record = (DruidWritable) w;
-      final long timestamp = Longs.tryParse((String) record.getValue().get(DruidTable.DEFAULT_TIMESTAMP_COLUMN));
-      final long truncatedTime = Longs.tryParse((String) record.getValue()
-                                                               .get(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME));
+      final long timestamp = (long) record.getValue().get(DruidTable.DEFAULT_TIMESTAMP_COLUMN);
+      final long truncatedTime = (long) record.getValue().get(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME);
       // We drop the time granularity column, since we do not need to store it
       Map event = Maps.filterKeys(record.getValue(), new Predicate<String>()
       {
