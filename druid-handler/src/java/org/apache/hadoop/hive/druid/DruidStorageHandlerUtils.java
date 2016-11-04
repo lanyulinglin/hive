@@ -34,6 +34,7 @@ import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexMergerV9;
 import io.druid.segment.column.ColumnConfig;
 import io.druid.timeline.DataSegment;
+import io.druid.timeline.partition.LinearShardSpec;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -59,16 +60,7 @@ import java.util.concurrent.TimeUnit;
 public final class DruidStorageHandlerUtils {
 
 
-  static {
-    try {
-      EmittingLogger.registerEmitter(
-              new ServiceEmitter("druid-hive-indexer", InetAddress.getLocalHost().getHostName(),
-                      new NoopEmitter()
-              ));
-    } catch (UnknownHostException e) {
-      Throwables.propagate(e);
-    }
-  }
+
 
   private static final String SMILE_CONTENT_TYPE = "application/x-jackson-smile";
 
@@ -100,6 +92,17 @@ public final class DruidStorageHandlerUtils {
   public static final IndexMerger INDEX_MERGER = new IndexMerger(JSON_MAPPER, DruidStorageHandlerUtils.INDEX_IO);
   public static final IndexMergerV9 INDEX_MERGER_V9 = new IndexMergerV9(JSON_MAPPER, DruidStorageHandlerUtils.INDEX_IO);
 
+  static {
+    JSON_MAPPER.registerSubtypes(LinearShardSpec.class);
+    try {
+      EmittingLogger.registerEmitter(
+              new ServiceEmitter("druid-hive-indexer", InetAddress.getLocalHost().getHostName(),
+                      new NoopEmitter()
+              ));
+    } catch (UnknownHostException e) {
+      Throwables.propagate(e);
+    }
+  }
   /**
    * Method that creates a request for Druid JSON query (using SMILE).
    * @param address
