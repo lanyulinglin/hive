@@ -144,8 +144,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
       DefaultOfflineAppenderatorFactory defaultOfflineAppenderatorFactory = new DefaultOfflineAppenderatorFactory(
           new HdfsDataSegmentPusher(config, new Configuration(), DruidStorageHandlerUtils.JSON_MAPPER),
           DruidStorageHandlerUtils.JSON_MAPPER,
-          DruidOutputFormatUtils.INDEX_IO,
-          DruidOutputFormatUtils.INDEX_MERGER
+          DruidStorageHandlerUtils.INDEX_IO,
+          DruidStorageHandlerUtils.INDEX_MERGER
       );
       this.tuningConfig = realtimeTuningConfig;
       this.dataSchema = dataSchema;
@@ -228,7 +228,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         for (DataSegment pushedSegment : segmentsAndMetadata.getSegments()) {
           pushedSegmentIdentifierHashSet.add(SegmentIdentifier.fromDataSegment(pushedSegment).getIdentifierAsString());
           final Path segmentOutputPath = makeOutputPath(pushedSegment);
-          DruidOutputFormatUtils.writeSegmentDescriptor(fileSystem, pushedSegment, segmentOutputPath);
+          DruidStorageHandlerUtils
+                  .writeSegmentDescriptor(fileSystem, pushedSegment, segmentOutputPath);
 
           LOG.info(
               String.format(

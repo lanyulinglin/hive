@@ -31,7 +31,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
 import org.apache.hadoop.hive.druid.io.DruidOutputFormat;
-import org.apache.hadoop.hive.druid.io.DruidOutputFormatUtils;
 import org.apache.hadoop.hive.druid.io.DruidQueryBasedInputFormat;
 import org.apache.hadoop.hive.druid.serde.DruidSerDe;
 import org.apache.hadoop.hive.metastore.HiveMetaHook;
@@ -138,7 +137,8 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     // Nothing to do
     final Path segmentDescriptorDir = new Path(table.getSd().getLocation());
     try {
-      List<DataSegment> dataSegmentList = DruidOutputFormatUtils.getPublishedSegments(segmentDescriptorDir, getConf());
+      List<DataSegment> dataSegmentList = DruidStorageHandlerUtils
+          .getPublishedSegments(segmentDescriptorDir, getConf());
       for (DataSegment dataSegment :
           dataSegmentList) {
         try {
@@ -162,7 +162,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     //@TODO // FIXME: 10/31/16 get the actual outPutPath
     final Path segmentDescriptorDir = new Path(table.getSd().getLocation());
     try {
-      publishSegments(DruidOutputFormatUtils.getPublishedSegments(segmentDescriptorDir, getConf()));
+      publishSegments(DruidStorageHandlerUtils.getPublishedSegments(segmentDescriptorDir, getConf()));
     }
     catch (IOException e) {
       LOG.error("Exception while commit", e);
