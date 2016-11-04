@@ -17,35 +17,20 @@
  */
 package org.apache.hadoop.hive.druid;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.util.concurrent.ExecutionException;
-
-import com.google.common.collect.ImmutableList;
-import com.google.inject.Binder;
-import com.google.inject.Injector;
-import com.google.inject.Key;
-import com.google.inject.Module;
-import io.druid.guice.GuiceInjectors;
-import io.druid.guice.JsonConfigProvider;
-import io.druid.guice.annotations.Self;
-import io.druid.initialization.Initialization;
-import io.druid.segment.IndexIO;
-import io.druid.segment.IndexMerger;
-import io.druid.segment.IndexMergerV9;
-import io.druid.server.DruidNode;
-import org.jboss.netty.handler.codec.http.HttpHeaders;
-import org.jboss.netty.handler.codec.http.HttpMethod;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.Request;
 import com.metamx.http.client.response.InputStreamResponseHandler;
-
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.BaseQuery;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Utils class for Druid storage handler.
@@ -66,7 +51,6 @@ public final class DruidStorageHandlerUtils {
 
   /**
    * Method that creates a request for Druid JSON query (using SMILE).
-   * @param mapper
    * @param address
    * @param query
    * @return
