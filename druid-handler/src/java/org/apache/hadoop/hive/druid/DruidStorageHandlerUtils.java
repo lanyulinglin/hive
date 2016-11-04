@@ -150,10 +150,10 @@ public final class DruidStorageHandlerUtils {
     ImmutableList.Builder<DataSegment> publishedSegmentsBuilder = ImmutableList.builder();
     FileSystem fs = descriptorInfoDir.getFileSystem(conf);
     for (FileStatus status : fs.listStatus(descriptorInfoDir)) {
-      if (status.isFile()) {
+      Path taskDir = new Path(status.getPath(), DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME);
+      if (!fs.isDirectory(taskDir)) {
         continue;
       }
-      final Path taskDir = status.getPath();
       for (FileStatus fileStatus : fs.listStatus(taskDir))
       {
         final DataSegment segment = JSON_MAPPER.readValue(fs.open(fileStatus.getPath()), DataSegment.class);
