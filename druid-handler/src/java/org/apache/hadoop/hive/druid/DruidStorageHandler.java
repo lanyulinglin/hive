@@ -136,7 +136,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   @Override
   public void rollbackCreateTable(Table table) throws MetaException
   {
-    final Path segmentDescriptorDir = new Path(table.getSd().getLocation(), SEGMENTS_DESCRIPTOR_DIR_NAME);
+    final Path segmentDescriptorDir = new Path(table.getSd().getLocation());
     try {
       List<DataSegment> dataSegmentList = DruidStorageHandlerUtils
           .getPublishedSegments(segmentDescriptorDir, getConf());
