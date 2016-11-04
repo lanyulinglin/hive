@@ -351,7 +351,7 @@ public class DruidSerDe extends AbstractSerDe {
     for (int i = 0; i < columns.length; i++) {
       if (values.get(i) == null) {
         // null, we just add it
-        value.put(fields.get(i).getFieldName(), null);
+        value.put(columns[i], null);
         continue;
       }
       final Object res;
@@ -373,7 +373,7 @@ public class DruidSerDe extends AbstractSerDe {
         default:
           throw new SerDeException("Unknown type: " + types[i].getPrimitiveCategory());
       }
-      value.put(fields.get(i).getFieldName(), res);
+      value.put(columns[i], res);
     }
     value.put(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME,
             ((TimestampObjectInspector) fields.get(columns.length).getFieldObjectInspector())
