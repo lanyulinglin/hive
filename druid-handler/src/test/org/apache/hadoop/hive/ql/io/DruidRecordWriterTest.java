@@ -92,9 +92,9 @@ public class DruidRecordWriterTest
     druidRecordWriter.write(null);
     DruidWritable druidWritable = new DruidWritable(ImmutableMap.<String, Object>of(
         DruidTable.DEFAULT_TIMESTAMP_COLUMN,
-        String.valueOf(new DateTime().getMillis()),
+        new DateTime().getMillis(),
         Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME,
-        String.valueOf(Granularity.MINUTE.truncate(new DateTime()).getMillis()),
+        Granularity.MINUTE.truncate(new DateTime()).getMillis(),
         "dim",
         "test",
         "met",
