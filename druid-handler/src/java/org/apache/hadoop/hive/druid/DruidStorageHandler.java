@@ -57,6 +57,8 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
 
   protected static final Logger LOG = LoggerFactory.getLogger(DruidStorageHandler.class);
 
+  public static final String SEGMENTS_DESCRIPTOR_DIR_NAME = "segmentsDescriptorDir";
+
   private final SQLMetadataConnector connector;
   private final SQLMetadataStorageUpdaterJobHandler druidSqlMetadataStorageUpdaterJobHandler;
   private final MetadataStorageTablesConfig druidMetadataStorageTablesConfig = MetadataStorageTablesConfig.fromBase("");
@@ -134,8 +136,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   @Override
   public void rollbackCreateTable(Table table) throws MetaException
   {
-    // Nothing to do
-    final Path segmentDescriptorDir = new Path(table.getSd().getLocation());
+    final Path segmentDescriptorDir = new Path(table.getSd().getLocation(), SEGMENTS_DESCRIPTOR_DIR_NAME);
     try {
       List<DataSegment> dataSegmentList = DruidStorageHandlerUtils
           .getPublishedSegments(segmentDescriptorDir, getConf());
@@ -159,8 +160,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   @Override
   public void commitCreateTable(Table table) throws MetaException
   {
-    //@TODO // FIXME: 10/31/16 get the actual outPutPath
-    final Path segmentDescriptorDir = new Path(table.getSd().getLocation());
+    final Path segmentDescriptorDir = new Path(table.getSd().getLocation(), SEGMENTS_DESCRIPTOR_DIR_NAME);
     try {
       publishSegments(DruidStorageHandlerUtils.getPublishedSegments(segmentDescriptorDir, getConf()));
     }

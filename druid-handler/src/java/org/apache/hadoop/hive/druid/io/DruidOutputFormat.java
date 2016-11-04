@@ -64,6 +64,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.druid.DruidStorageHandler;
 import org.apache.hadoop.hive.druid.DruidStorageHandlerUtils;
 import org.apache.hadoop.hive.druid.serde.DruidWritable;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
@@ -104,9 +105,12 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     private final DataSchema dataSchema;
     private final Appenderator appenderator;
     private final RealtimeTuningConfig tuningConfig;
+
+    private final Path segmentsDescriptorDir;
+
     private SegmentIdentifier currentOpenSegment = null;
     private final Integer maxPartitionSize;
-    private final Path segmentDescriptorDir;
+    private final Path segmentsDir;
     private final FileSystem fileSystem;
     private final Supplier<Committer> committerSupplier;
 
@@ -114,7 +118,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         DataSchema dataSchema,
         RealtimeTuningConfig realtimeTuningConfig,
         Integer maxPartitionSize,
-        final Path segmentDescriptorDir,
+        final Path segmentsDir,
         final FileSystem fileSystem,
         JobConf jobConf
     )
@@ -123,26 +127,26 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
       switch (fileSystem.getScheme()) {
         case "hdfs":
           properties.put("druid.storage.type", "hdfs");
-          properties.put("druid.storage.storageDirectory", segmentDescriptorDir.toString());
+          properties.put("druid.storage.storageDirectory", segmentsDir.toString());
           break;
         case "s3":
         case "s3n":
           properties.put("druid.storage.type", "s3");
-          properties.put("druid.storage.storageDirectory", segmentDescriptorDir.toString());
+          properties.put("druid.storage.storageDirectory", segmentsDir.toString());
           break;
         case "file":
           properties.put("druid.storage.type", "file");
-          properties.put("druid.storage.storageDirectory", segmentDescriptorDir.toString());
+          properties.put("druid.storage.storageDirectory", segmentsDir.toString());
           break;
         default:
           throw new IAE("Unknown file system scheme [%s]", fileSystem.getScheme());
       }*/
 
-      HdfsDataSegmentPusherConfig config = new HdfsDataSegmentPusherConfig();
+      HdfsDataSegmentPusherConfig hdfsDataSegmentPusherConfig = new HdfsDataSegmentPusherConfig();
 
-      config.setStorageDirectory(segmentDescriptorDir.toString());
+      hdfsDataSegmentPusherConfig.setStorageDirectory(segmentsDir.toString());
       DefaultOfflineAppenderatorFactory defaultOfflineAppenderatorFactory = new DefaultOfflineAppenderatorFactory(
-          new HdfsDataSegmentPusher(config, new Configuration(), DruidStorageHandlerUtils.JSON_MAPPER),
+          new HdfsDataSegmentPusher(hdfsDataSegmentPusherConfig, new Configuration(), DruidStorageHandlerUtils.JSON_MAPPER),
           DruidStorageHandlerUtils.JSON_MAPPER,
           DruidStorageHandlerUtils.INDEX_IO,
           DruidStorageHandlerUtils.INDEX_MERGER
@@ -157,7 +161,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
       this.maxPartitionSize = maxPartitionSize;
 
       appenderator.startJob(); // maybe we need to move this out of the constructor
-      this.segmentDescriptorDir = Preconditions.checkNotNull(segmentDescriptorDir);
+      this.segmentsDir = Preconditions.checkNotNull(segmentsDir);
+      this.segmentsDescriptorDir = new Path(this.segmentsDir, DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME);
       this.fileSystem = Preconditions.checkNotNull(fileSystem);
       committerSupplier = Suppliers.ofInstance(Committers.nil());
     }
@@ -167,11 +172,9 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
      * Note that this function assumes that timestamps are pseudo sorted.
      * This function will close and move to the next segment granularity as soon as it we get an event from the next interval.
      *
-     * @param timestamp event timestamp as long
-     *
      * @return segmentIdentifier with respect to the timestamp and maybe push the current open segment.
      */
-    private SegmentIdentifier getSegmentIdentifierAndMaybePush(long timestamp, long truncatedTime)
+    private SegmentIdentifier getSegmentIdentifierAndMaybePush(long truncatedTime)
     {
 
       final Granularity segmentGranularity = dataSchema.getGranularitySpec().getSegmentGranularity();
@@ -225,17 +228,18 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
       try {
         SegmentsAndMetadata segmentsAndMetadata = appenderator.push(segmentsToPush, committerSupplier.get()).get();
         final HashSet<String> pushedSegmentIdentifierHashSet = new HashSet<>();
+
         for (DataSegment pushedSegment : segmentsAndMetadata.getSegments()) {
           pushedSegmentIdentifierHashSet.add(SegmentIdentifier.fromDataSegment(pushedSegment).getIdentifierAsString());
-          final Path segmentOutputPath = makeOutputPath(pushedSegment);
+          final Path segmentDescriptorOutputPath = makeSegmentDescriptorOutputPath(pushedSegment);
           DruidStorageHandlerUtils
-                  .writeSegmentDescriptor(fileSystem, pushedSegment, segmentOutputPath);
+                  .writeSegmentDescriptor(fileSystem, pushedSegment, segmentDescriptorOutputPath);
 
           LOG.info(
               String.format(
                   "Pushed the segment [%s] and persisted the descriptor located at [%s]",
                   pushedSegment,
-                  segmentOutputPath
+                  segmentDescriptorOutputPath
               )
           );
         }
@@ -307,7 +311,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
       );
 
       try {
-        appenderator.add(getSegmentIdentifierAndMaybePush(timestamp, truncatedTime), inputRow, committerSupplier);
+        appenderator.add(getSegmentIdentifierAndMaybePush(truncatedTime), inputRow, committerSupplier);
       }
       catch (SegmentNotWritableException e) {
         throw new IOException(e);
@@ -346,9 +350,11 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
       this.close(true);
     }
 
-    private Path makeOutputPath(DataSegment pushedSegment)
+
+    private Path makeSegmentDescriptorOutputPath(DataSegment pushedSegment)
     {
-      return new Path(segmentDescriptorDir, String.format("%s.json", pushedSegment.getIdentifier().replace(":", "")));
+      return new Path(
+              segmentsDescriptorDir, String.format("%s.json", pushedSegment.getIdentifier().replace(":", "")));
     }
   }
 

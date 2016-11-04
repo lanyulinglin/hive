@@ -148,7 +148,6 @@ public final class DruidStorageHandlerUtils {
   public static List<DataSegment> getPublishedSegments(Path descriptorInfoDir, Configuration conf) throws IOException
   {
     ImmutableList.Builder<DataSegment> publishedSegmentsBuilder = ImmutableList.builder();
-
     FileSystem fs = descriptorInfoDir.getFileSystem(conf);
     for (FileStatus status : fs.listStatus(descriptorInfoDir)) {
       final DataSegment segment = JSON_MAPPER.readValue(fs.open(status.getPath()), DataSegment.class);
