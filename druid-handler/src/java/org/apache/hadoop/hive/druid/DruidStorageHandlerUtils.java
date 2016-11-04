@@ -43,7 +43,6 @@ import org.apache.hadoop.io.retry.RetryProxy;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -137,19 +136,20 @@ public final class DruidStorageHandlerUtils {
   }
 
   /**
-   * @param descriptorInfoDir path to the directory containing the segments descriptor info
-   * @param conf              hadoop conf to get the file system
+   * @param tableDir path to the table directory containing the segments descriptor info
+   *                 the descriptor path will be .../tableDir/task_id/{@link DruidStorageHandler#SEGMENTS_DESCRIPTOR_DIR_NAME}/*.json
+   * @param conf     hadoop conf to get the file system
    *
    * @return List of DataSegments
    *
-   * @throws FileNotFoundException can be for the case we did not produce data.
+   * @throws IOException can be for the case we did not produce data.
    */
 
-  public static List<DataSegment> getPublishedSegments(Path descriptorInfoDir, Configuration conf) throws IOException
+  public static List<DataSegment> getPublishedSegments(Path tableDir, Configuration conf) throws IOException
   {
     ImmutableList.Builder<DataSegment> publishedSegmentsBuilder = ImmutableList.builder();
-    FileSystem fs = descriptorInfoDir.getFileSystem(conf);
-    for (FileStatus status : fs.listStatus(descriptorInfoDir)) {
+    FileSystem fs = tableDir.getFileSystem(conf);
+    for (FileStatus status : fs.listStatus(tableDir)) {
       Path taskDir = new Path(status.getPath(), DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME);
       if (!fs.isDirectory(taskDir)) {
         continue;
