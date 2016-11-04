@@ -129,10 +129,6 @@
           <groupId>com.fasterxml.jackson.core</groupId>
           <artifactId>jackson-databind</artifactId>
         </exclusion>
-        <exclusion>
-          <groupId>io.druid</groupId>
-          <artifactId>druid-aws-common</artifactId>
-        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -181,6 +177,11 @@
     <dependency>
       <groupId>io.druid.extensions</groupId>
       <artifactId>druid-hdfs-storage</artifactId>
+      <version>${druid.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.druid.extensions</groupId>
+      <artifactId>mysql-metadata-storage</artifactId>
       <version>${druid.version}</version>
     </dependency>
 
@@ -256,6 +257,8 @@
                   <include>com.fasterxml.jackson.core:*</include>
                   <include>com.fasterxml.jackson.datatype:*</include>
                   <include>com.fasterxml.jackson.dataformat:*</include>
+                  <include>it.unimi.dsi:*</include>
+                  <include>org.jdbi:*</include>
                 </includes>
               </artifactSet>
               <filters>
