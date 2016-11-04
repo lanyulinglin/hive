@@ -162,7 +162,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
 
       appenderator.startJob(); // maybe we need to move this out of the constructor
       this.segmentsDir = Preconditions.checkNotNull(segmentsDir);
-      this.segmentsDescriptorDir = new Path(this.segmentsDir, DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME);
+      this.segmentsDescriptorDir = new Path(this.segmentsDir.getParent(), DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME);
       this.fileSystem = Preconditions.checkNotNull(fileSystem);
       committerSupplier = Suppliers.ofInstance(Committers.nil());
     }
