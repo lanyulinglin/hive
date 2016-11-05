@@ -38,6 +38,8 @@ import org.apache.hadoop.io.retry.RetryPolicies;
 import org.apache.hadoop.io.retry.RetryProxy;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
@@ -63,6 +65,8 @@ import io.druid.timeline.partition.LinearShardSpec;
  * Utils class for Druid storage handler.
  */
 public final class DruidStorageHandlerUtils {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DruidStorageHandlerUtils.class);
 
   private static final String SMILE_CONTENT_TYPE = "application/x-jackson-smile";
   private static final String PATH_VARIABLE = "path";
@@ -167,14 +171,18 @@ public final class DruidStorageHandlerUtils {
         Path tmpPath = new Path((String) loadSpec.get(PATH_VARIABLE));
         // path format -- > .../dataSource/interval/version/partitionNum/xxx.zip
         Deque<String> stack = new ArrayDeque<>(4);
-        for (int i = 0; i < 4; i++) {
-          stack.add(tmpPath.getName());
+        for (int i = 0; i < 5; i++) {
+          stack.push(tmpPath.getName());
           tmpPath = tmpPath.getParent();
         }
-        Path finalPath = status.getPath();
-        for (int i = 0; i < 4; i++) {
-          finalPath = finalPath.suffix(stack.pop());
+        StringBuilder suffix = new StringBuilder();
+        suffix.append(stack.pop());
+        while (!stack.isEmpty()) {
+          suffix.append(Path.SEPARATOR);
+          suffix.append(stack.pop());
         }
+        Path finalPath = new Path(status.getPath(), suffix.toString());
+        LOG.debug("Segment descriptor path replaced by [%s]", finalPath);
         loadSpec.put(PATH_VARIABLE, finalPath);
         segment = segment.withLoadSpec(loadSpec);
         publishedSegmentsBuilder.add(segment);
