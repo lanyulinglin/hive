@@ -157,6 +157,7 @@ public final class DruidStorageHandlerUtils {
 
   public static List<DataSegment> getPublishedSegments(Path tableDir, Configuration conf) throws IOException
   {
+    Deque<String> stack = new ArrayDeque<>(4);
     ImmutableList.Builder<DataSegment> publishedSegmentsBuilder = ImmutableList.builder();
     FileSystem fs = tableDir.getFileSystem(conf);
     for (FileStatus status : fs.listStatus(tableDir)) {
@@ -170,7 +171,6 @@ public final class DruidStorageHandlerUtils {
         Map<String, Object> loadSpec = segment.getLoadSpec();
         Path tmpPath = new Path((String) loadSpec.get(PATH_VARIABLE));
         // path format -- > .../dataSource/interval/version/partitionNum/xxx.zip
-        Deque<String> stack = new ArrayDeque<>(4);
         for (int i = 0; i < 5; i++) {
           stack.push(tmpPath.getName());
           tmpPath = tmpPath.getParent();
