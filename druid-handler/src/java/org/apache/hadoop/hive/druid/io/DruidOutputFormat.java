@@ -45,6 +45,7 @@ import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
+import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.segment.realtime.FireDepartmentMetrics;
 import io.druid.segment.realtime.appenderator.Appenderator;
 import io.druid.segment.realtime.appenderator.DefaultOfflineAppenderatorFactory;
@@ -59,12 +60,10 @@ import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
 import org.apache.calcite.adapter.druid.DruidTable;
 import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.druid.DruidStorageHandler;
 import org.apache.hadoop.hive.druid.DruidStorageHandlerUtils;
 import org.apache.hadoop.hive.druid.serde.DruidWritable;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
@@ -94,75 +93,56 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
-public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritable>
-{
+import static org.apache.hadoop.hive.druid.DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME;
+
+public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritable> {
 
   public static class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritable>,
-      org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter
-  {
+          org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter {
     protected static final Logger LOG = LoggerFactory.getLogger(DruidRecordWriter.class);
 
     private final DataSchema dataSchema;
+
     private final Appenderator appenderator;
+
     private final RealtimeTuningConfig tuningConfig;
 
     private final Path segmentsDescriptorDir;
 
     private SegmentIdentifier currentOpenSegment = null;
+
     private final Integer maxPartitionSize;
-    private final Path segmentsDir;
+
     private final FileSystem fileSystem;
+
     private final Supplier<Committer> committerSupplier;
 
     public DruidRecordWriter(
-        DataSchema dataSchema,
-        RealtimeTuningConfig realtimeTuningConfig,
-        Integer maxPartitionSize,
-        final Path segmentsDir,
-        final FileSystem fileSystem,
-        JobConf jobConf
-    )
-    {
-     /* Properties properties = DruidOutputFormatUtils.injector.getInstance(Properties.class);
-      switch (fileSystem.getScheme()) {
-        case "hdfs":
-          properties.put("druid.storage.type", "hdfs");
-          properties.put("druid.storage.storageDirectory", segmentsDir.toString());
-          break;
-        case "s3":
-        case "s3n":
-          properties.put("druid.storage.type", "s3");
-          properties.put("druid.storage.storageDirectory", segmentsDir.toString());
-          break;
-        case "file":
-          properties.put("druid.storage.type", "file");
-          properties.put("druid.storage.storageDirectory", segmentsDir.toString());
-          break;
-        default:
-          throw new IAE("Unknown file system scheme [%s]", fileSystem.getScheme());
-      }*/
-
-      HdfsDataSegmentPusherConfig hdfsDataSegmentPusherConfig = new HdfsDataSegmentPusherConfig();
-
-      hdfsDataSegmentPusherConfig.setStorageDirectory(segmentsDir.toString());
+            DataSchema dataSchema,
+            RealtimeTuningConfig realtimeTuningConfig,
+            DataSegmentPusher dataSegmentPusher,
+            Integer maxPartitionSize,
+            final Path segmentsDescriptorsDir,
+            final FileSystem fileSystem
+    ) {
       DefaultOfflineAppenderatorFactory defaultOfflineAppenderatorFactory = new DefaultOfflineAppenderatorFactory(
-          new HdfsDataSegmentPusher(hdfsDataSegmentPusherConfig, new Configuration(), DruidStorageHandlerUtils.JSON_MAPPER),
-          DruidStorageHandlerUtils.JSON_MAPPER,
-          DruidStorageHandlerUtils.INDEX_IO,
-          DruidStorageHandlerUtils.INDEX_MERGER
+              Preconditions.checkNotNull(dataSegmentPusher),
+              DruidStorageHandlerUtils.JSON_MAPPER,
+              DruidStorageHandlerUtils.INDEX_IO,
+              DruidStorageHandlerUtils.INDEX_MERGER
       );
       this.tuningConfig = realtimeTuningConfig;
       this.dataSchema = dataSchema;
       appenderator = defaultOfflineAppenderatorFactory.build(
-          this.dataSchema,
-          tuningConfig,
-          new FireDepartmentMetrics()
+              this.dataSchema,
+              tuningConfig,
+              new FireDepartmentMetrics()
       );
       this.maxPartitionSize = maxPartitionSize;
-
       appenderator.startJob(); // maybe we need to move this out of the constructor
-      this.segmentsDir = Preconditions.checkNotNull(segmentsDir);
-      this.segmentsDescriptorDir = new Path(this.segmentsDir, DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME);
+      this.segmentsDescriptorDir = new Path(segmentsDescriptorsDir,
+              SEGMENTS_DESCRIPTOR_DIR_NAME
+      );
       this.fileSystem = Preconditions.checkNotNull(fileSystem);
       committerSupplier = Suppliers.ofInstance(Committers.nil());
     }
@@ -174,23 +154,23 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
      *
      * @return segmentIdentifier with respect to the timestamp and maybe push the current open segment.
      */
-    private SegmentIdentifier getSegmentIdentifierAndMaybePush(long truncatedTime)
-    {
+    private SegmentIdentifier getSegmentIdentifierAndMaybePush(long truncatedTime) {
 
-      final Granularity segmentGranularity = dataSchema.getGranularitySpec().getSegmentGranularity();
+      final Granularity segmentGranularity = dataSchema.getGranularitySpec()
+              .getSegmentGranularity();
 
       final Interval interval = new Interval(
-          new DateTime(truncatedTime),
-          segmentGranularity.increment(new DateTime(truncatedTime))
+              new DateTime(truncatedTime),
+              segmentGranularity.increment(new DateTime(truncatedTime))
       );
 
       SegmentIdentifier retVal;
       if (currentOpenSegment == null) {
         retVal = new SegmentIdentifier(
-            dataSchema.getDataSource(),
-            interval,
-            tuningConfig.getVersioningPolicy().getVersion(interval),
-            new LinearShardSpec(0)
+                dataSchema.getDataSource(),
+                interval,
+                tuningConfig.getVersioningPolicy().getVersion(interval),
+                new LinearShardSpec(0)
         );
         currentOpenSegment = retVal;
         return retVal;
@@ -201,10 +181,10 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
           return retVal;
         } else {
           retVal = new SegmentIdentifier(
-              dataSchema.getDataSource(),
-              interval,
-              tuningConfig.getVersioningPolicy().getVersion(interval),
-              new LinearShardSpec(currentOpenSegment.getShardSpec().getPartitionNum() + 1)
+                  dataSchema.getDataSource(),
+                  interval,
+                  tuningConfig.getVersioningPolicy().getVersion(interval),
+                  new LinearShardSpec(currentOpenSegment.getShardSpec().getPartitionNum() + 1)
           );
           pushSegments(Lists.newArrayList(currentOpenSegment));
           currentOpenSegment = retVal;
@@ -212,10 +192,10 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         }
       } else {
         retVal = new SegmentIdentifier(
-            dataSchema.getDataSource(),
-            interval,
-            tuningConfig.getVersioningPolicy().getVersion(interval),
-            new LinearShardSpec(0)
+                dataSchema.getDataSource(),
+                interval,
+                tuningConfig.getVersioningPolicy().getVersion(interval),
+                new LinearShardSpec(0)
         );
         pushSegments(Lists.newArrayList(currentOpenSegment));
         currentOpenSegment = retVal;
@@ -223,77 +203,74 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
       }
     }
 
-    private void pushSegments(List<SegmentIdentifier> segmentsToPush)
-    {
+    private void pushSegments(List<SegmentIdentifier> segmentsToPush) {
       try {
-        SegmentsAndMetadata segmentsAndMetadata = appenderator.push(segmentsToPush, committerSupplier.get()).get();
+        SegmentsAndMetadata segmentsAndMetadata = appenderator
+                .push(segmentsToPush, committerSupplier.get()).get();
         final HashSet<String> pushedSegmentIdentifierHashSet = new HashSet<>();
 
         for (DataSegment pushedSegment : segmentsAndMetadata.getSegments()) {
-          pushedSegmentIdentifierHashSet.add(SegmentIdentifier.fromDataSegment(pushedSegment).getIdentifierAsString());
+          pushedSegmentIdentifierHashSet
+                  .add(SegmentIdentifier.fromDataSegment(pushedSegment).getIdentifierAsString());
           final Path segmentDescriptorOutputPath = makeSegmentDescriptorOutputPath(pushedSegment);
           DruidStorageHandlerUtils
                   .writeSegmentDescriptor(fileSystem, pushedSegment, segmentDescriptorOutputPath);
 
           LOG.info(
-              String.format(
-                  "Pushed the segment [%s] and persisted the descriptor located at [%s]",
-                  pushedSegment,
-                  segmentDescriptorOutputPath
-              )
+                  String.format(
+                          "Pushed the segment [%s] and persisted the descriptor located at [%s]",
+                          pushedSegment,
+                          segmentDescriptorOutputPath
+                  )
           );
         }
 
-        final HashSet<String> toPushSegmentsHashSet = new HashSet(FluentIterable.from(segmentsToPush)
-                                                                                .transform(new Function<SegmentIdentifier, String>()
-                                                                                {
-                                                                                  @Nullable
-                                                                                  @Override
-                                                                                  public String apply(
-                                                                                      @Nullable SegmentIdentifier input
-                                                                                  )
-                                                                                  {
-                                                                                    return input.getIdentifierAsString();
-                                                                                  }
-                                                                                })
-                                                                                .toList());
+        final HashSet<String> toPushSegmentsHashSet = new HashSet(
+                FluentIterable.from(segmentsToPush)
+                        .transform(new Function<SegmentIdentifier, String>() {
+                          @Nullable
+                          @Override
+                          public String apply(
+                                  @Nullable SegmentIdentifier input
+                          ) {
+                            return input.getIdentifierAsString();
+                          }
+                        })
+                        .toList());
 
         if (!pushedSegmentIdentifierHashSet.equals(toPushSegmentsHashSet)) {
           throw new IllegalStateException(String.format(
-              "was asked to publish [%s] but was able to publish only [%s]",
-              Joiner.on(", ").join(toPushSegmentsHashSet),
-              Joiner.on(", ").join(pushedSegmentIdentifierHashSet)
+                  "was asked to publish [%s] but was able to publish only [%s]",
+                  Joiner.on(", ").join(toPushSegmentsHashSet),
+                  Joiner.on(", ").join(pushedSegmentIdentifierHashSet)
           ));
         }
 
         LOG.info(String.format("Published [%,d] segments.", segmentsToPush.size()));
-      }
-      catch (InterruptedException e) {
-        LOG.error(String.format("got interrupted, failed to push  [%,d] segments.", segmentsToPush.size()), e);
+      } catch (InterruptedException e) {
+        LOG.error(String.format("got interrupted, failed to push  [%,d] segments.",
+                segmentsToPush.size()
+        ), e);
         Thread.currentThread().interrupt();
-      }
-      catch (IOException | ExecutionException e) {
+      } catch (IOException | ExecutionException e) {
         LOG.error(String.format("Failed to push  [%,d] segments.", segmentsToPush.size()), e);
         Throwables.propagate(e);
       }
     }
 
-
     @Override
-    public void write(Writable w) throws IOException
-    {
+    public void write(Writable w) throws IOException {
       if (w == null) {
         return;
       }
       DruidWritable record = (DruidWritable) w;
       final long timestamp = (long) record.getValue().get(DruidTable.DEFAULT_TIMESTAMP_COLUMN);
-      final long truncatedTime = (long) record.getValue().get(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME);
+      final long truncatedTime = (long) record.getValue()
+              .get(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME);
       // We drop the time granularity column, since we do not need to store it
-      Map event = Maps.filterKeys(record.getValue(), new Predicate<String>()
-      {
+      Map event = Maps.filterKeys(record.getValue(), new Predicate<String>() {
         @Override
-        public boolean apply(@Nullable String input)
-        {
+        public boolean apply(@Nullable String input) {
           if (input.equals(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME)) {
             return false;
           }
@@ -302,25 +279,24 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
       });
 
       InputRow inputRow = new MapBasedInputRow(
-          timestamp,
-          dataSchema.getParser()
-                    .getParseSpec()
-                    .getDimensionsSpec()
-                    .getDimensionNames(),
-          event
+              timestamp,
+              dataSchema.getParser()
+                      .getParseSpec()
+                      .getDimensionsSpec()
+                      .getDimensionNames(),
+              event
       );
 
       try {
-        appenderator.add(getSegmentIdentifierAndMaybePush(truncatedTime), inputRow, committerSupplier);
-      }
-      catch (SegmentNotWritableException e) {
+        appenderator
+                .add(getSegmentIdentifierAndMaybePush(truncatedTime), inputRow, committerSupplier);
+      } catch (SegmentNotWritableException e) {
         throw new IOException(e);
       }
     }
 
     @Override
-    public void close(boolean abort) throws IOException
-    {
+    public void close(boolean abort) throws IOException {
       try {
         if (abort == false) {
           final List<SegmentIdentifier> segmentsToPush = Lists.newArrayList();
@@ -328,52 +304,56 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
           pushSegments(segmentsToPush);
         }
         appenderator.clear();
-      }
-      catch (InterruptedException e) {
+      } catch (InterruptedException e) {
         Throwables.propagate(e);
-      }
-      finally {
+      } finally {
         appenderator.close();
       }
     }
 
-
     @Override
-    public void write(NullWritable key, DruidWritable value) throws IOException
-    {
+    public void write(NullWritable key, DruidWritable value) throws IOException {
       this.write(value);
     }
 
     @Override
-    public void close(Reporter reporter) throws IOException
-    {
+    public void close(Reporter reporter) throws IOException {
       this.close(true);
     }
 
-
-    private Path makeSegmentDescriptorOutputPath(DataSegment pushedSegment)
-    {
+    private Path makeSegmentDescriptorOutputPath(DataSegment pushedSegment) {
       return new Path(
-              segmentsDescriptorDir, String.format("%s.json", pushedSegment.getIdentifier().replace(":", "")));
+              segmentsDescriptorDir,
+              String.format("%s.json", pushedSegment.getIdentifier().replace(":", ""))
+      );
     }
+
   }
 
   @Override
   public FileSinkOperator.RecordWriter getHiveRecordWriter(
-      JobConf jc,
-      Path finalOutPath,
-      Class<? extends Writable> valueClass,
-      boolean isCompressed,
-      Properties tableProperties,
-      Progressable progress
-  ) throws IOException
-  {
+          JobConf jc,
+          Path finalOutPath,
+          Class<? extends Writable> valueClass,
+          boolean isCompressed,
+          Properties tableProperties,
+          Progressable progress
+  ) throws IOException {
 
-    final String segmentGranularity = tableProperties.getProperty(Constants.DRUID_SEGMENT_GRANULARITY) != null ?
-                                      tableProperties.getProperty(Constants.DRUID_SEGMENT_GRANULARITY) :
-                                      HiveConf.getVar(jc, HiveConf.ConfVars.HIVE_DRUID_INDEXING_GRANULARITY);
+    final String segmentGranularity =
+            tableProperties.getProperty(Constants.DRUID_SEGMENT_GRANULARITY) != null ?
+                    tableProperties.getProperty(Constants.DRUID_SEGMENT_GRANULARITY) :
+                    HiveConf.getVar(jc, HiveConf.ConfVars.HIVE_DRUID_INDEXING_GRANULARITY);
     final String dataSource = tableProperties.getProperty(Constants.DRUID_DATA_SOURCE);
+    final String segmentDirectory =
+            tableProperties.getProperty(Constants.DRUID_SEGMENT_DIRECTORY) == null
+                    ? tableProperties.getProperty(Constants.DRUID_SEGMENT_DIRECTORY)
+                    : HiveConf.getVar(jc, HiveConf.ConfVars.DRUID_SEGMENT_DIRECTORY);
 
+    final HdfsDataSegmentPusherConfig hdfsDataSegmentPusherConfig = new HdfsDataSegmentPusherConfig();
+    hdfsDataSegmentPusherConfig.setStorageDirectory(segmentDirectory);
+    final DataSegmentPusher hdfsDataSegmentPusher = new HdfsDataSegmentPusher(
+            hdfsDataSegmentPusherConfig, jc, DruidStorageHandlerUtils.JSON_MAPPER);
     // Parse the configuration parameters
     final String columnNameProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMNS);
     final String columnTypeProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMN_TYPES);
@@ -386,8 +366,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     }
     if (!columnNames.contains(DruidTable.DEFAULT_TIMESTAMP_COLUMN)) {
       throw new IOException("Timestamp column (' " + DruidTable.DEFAULT_TIMESTAMP_COLUMN +
-                            "') not specified in create table; list of columns is : " +
-                            tableProperties.getProperty(serdeConstants.LIST_COLUMNS));
+              "') not specified in create table; list of columns is : " +
+              tableProperties.getProperty(serdeConstants.LIST_COLUMNS));
     }
     ArrayList<TypeInfo> columnTypes = TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty);
 
@@ -421,53 +401,56 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     }
 
     final InputRowParser inputRowParser = new MapInputRowParser(new TimeAndDimsParseSpec(
-        new TimestampSpec(DruidTable.DEFAULT_TIMESTAMP_COLUMN, "auto", null),
-        new DimensionsSpec(dimensions, null, null)
+            new TimestampSpec(DruidTable.DEFAULT_TIMESTAMP_COLUMN, "auto", null),
+            new DimensionsSpec(dimensions, null, null)
     ));
 
-
-    Map<String, Object> inputParser = DruidStorageHandlerUtils.JSON_MAPPER.convertValue(inputRowParser, Map.class);
+    Map<String, Object> inputParser = DruidStorageHandlerUtils.JSON_MAPPER
+            .convertValue(inputRowParser, Map.class);
 
     final GranularitySpec granularitySpec = new UniformGranularitySpec(
-        Granularity.valueOf(segmentGranularity),
-        null,
-        null
+            Granularity.valueOf(segmentGranularity),
+            null,
+            null
     );
     final DataSchema dataSchema = new DataSchema(
-        dataSource,
-        inputParser,
-        aggregatorFactories.toArray(new AggregatorFactory[aggregatorFactories.size()]),
-        granularitySpec,
-        DruidStorageHandlerUtils.JSON_MAPPER
+            dataSource,
+            inputParser,
+            aggregatorFactories.toArray(new AggregatorFactory[aggregatorFactories.size()]),
+            granularitySpec,
+            DruidStorageHandlerUtils.JSON_MAPPER
     );
 
-
-    Integer maxPartitionSize = HiveConf.getIntVar(jc, HiveConf.ConfVars.HIVE_DRUID_MAX_PARTITION_SIZE);
-    String basePersistDirectory = HiveConf.getVar(jc, HiveConf.ConfVars.HIVE_DRUID_BASE_PERSIST_DIRECTORY);
-    final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig.makeDefaultTuningConfig(new File(
-        basePersistDirectory)).withVersioningPolicy(new CustomVersioningPolicy(null));
+    Integer maxPartitionSize = HiveConf
+            .getIntVar(jc, HiveConf.ConfVars.HIVE_DRUID_MAX_PARTITION_SIZE);
+    String basePersistDirectory = HiveConf
+            .getVar(jc, HiveConf.ConfVars.HIVE_DRUID_BASE_PERSIST_DIRECTORY);
+    final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig
+            .makeDefaultTuningConfig(new File(
+                    basePersistDirectory)).withVersioningPolicy(new CustomVersioningPolicy(null));
 
     return new DruidRecordWriter(
-        dataSchema,
-        realtimeTuningConfig,
-        maxPartitionSize,
-        finalOutPath,
-        finalOutPath.getFileSystem(jc),
-        jc
+            dataSchema,
+            realtimeTuningConfig,
+            hdfsDataSegmentPusher, maxPartitionSize,
+            makeSegmentDescriptorOutputDir(finalOutPath),
+            finalOutPath.getFileSystem(jc)
     );
+  }
+
+  private Path makeSegmentDescriptorOutputDir(Path finalOutPath) {
+    return new Path(finalOutPath, SEGMENTS_DESCRIPTOR_DIR_NAME);
   }
 
   @Override
   public RecordWriter<K, DruidWritable> getRecordWriter(
-      FileSystem ignored, JobConf job, String name, Progressable progress
-  ) throws IOException
-  {
+          FileSystem ignored, JobConf job, String name, Progressable progress
+  ) throws IOException {
     throw new UnsupportedOperationException("please implement me !");
   }
 
   @Override
-  public void checkOutputSpecs(FileSystem ignored, JobConf job) throws IOException
-  {
+  public void checkOutputSpecs(FileSystem ignored, JobConf job) throws IOException {
     throw new UnsupportedOperationException("not implemented yet");
   }
 }
