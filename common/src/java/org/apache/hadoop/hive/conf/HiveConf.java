@@ -3191,7 +3191,9 @@ public class HiveConf extends Configuration {
             "Comma-separated list of supported blobstore schemes."),
 
     HIVE_BLOBSTORE_USE_BLOBSTORE_AS_SCRATCHDIR("hive.blobstore.use.blobstore.as.scratchdir", false,
-            "Enable the use of scratch directories directly on blob storage systems (it may cause performance penalties).");
+            "Enable the use of scratch directories directly on blob storage systems (it may cause performance penalties)."),
+    DRUID_SEGMENT_DIRECTORY("hive.druid.storage.storageDirectory", "/druid/segments"
+            , "druid deep storage location");
 
 
     public final String varname;
