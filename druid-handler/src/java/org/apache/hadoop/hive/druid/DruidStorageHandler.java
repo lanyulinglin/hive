@@ -61,7 +61,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
 
   private final SQLMetadataConnector connector;
   private final SQLMetadataStorageUpdaterJobHandler druidSqlMetadataStorageUpdaterJobHandler;
-  private final MetadataStorageTablesConfig druidMetadataStorageTablesConfig = MetadataStorageTablesConfig.fromBase("");
+  private final MetadataStorageTablesConfig druidMetadataStorageTablesConfig = MetadataStorageTablesConfig.fromBase("druid");
 
   public DruidStorageHandler()
   {
