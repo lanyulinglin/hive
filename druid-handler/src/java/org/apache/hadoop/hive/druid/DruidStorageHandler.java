@@ -66,9 +66,9 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   public DruidStorageHandler()
   {
     final String dbType = SessionState.getSessionConf().get("hive.druid.metadata.db.type", "mysql");
-    final String username = SessionState.getSessionConf().get("hive.druid.metadata.username", "");
+    final String username = SessionState.getSessionConf().get("hive.druid.metadata.username", "druid");
     final String password = SessionState.getSessionConf().get("hive.druid.metadata.password", "");
-    final String uri = SessionState.getSessionConf().get("hive.druid.metadata.uri", "jdbc:mysql://localhost/druid");
+    final String uri = SessionState.getSessionConf().get("hive.druid.metadata.uri", "jdbc:mysql://cn105-10.l42scl.hortonworks.com/druid_db");
 
     connector = new MySQLConnector(Suppliers.<MetadataStorageConnectorConfig>ofInstance(new MetadataStorageConnectorConfig()
     {

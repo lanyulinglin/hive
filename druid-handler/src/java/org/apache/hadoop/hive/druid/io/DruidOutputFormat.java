@@ -140,9 +140,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
       );
       this.maxPartitionSize = maxPartitionSize;
       appenderator.startJob(); // maybe we need to move this out of the constructor
-      this.segmentsDescriptorDir = new Path(segmentsDescriptorsDir,
-              SEGMENTS_DESCRIPTOR_DIR_NAME
-      );
+      this.segmentsDescriptorDir = segmentsDescriptorsDir;
       this.fileSystem = Preconditions.checkNotNull(fileSystem);
       committerSupplier = Suppliers.ofInstance(Committers.nil());
     }
