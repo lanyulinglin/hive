@@ -97,6 +97,7 @@ import static org.apache.hadoop.hive.druid.DruidStorageHandler.SEGMENTS_DESCRIPT
 
 public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritable> {
 
+  protected static final Logger LOG = LoggerFactory.getLogger(DruidOutputFormat.class);
   public static class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritable>,
           org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter {
     protected static final Logger LOG = LoggerFactory.getLogger(DruidRecordWriter.class);
@@ -349,7 +350,10 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
                     : HiveConf.getVar(jc, HiveConf.ConfVars.DRUID_SEGMENT_DIRECTORY);
 
     final HdfsDataSegmentPusherConfig hdfsDataSegmentPusherConfig = new HdfsDataSegmentPusherConfig();
-    hdfsDataSegmentPusherConfig.setStorageDirectory(segmentDirectory);
+    //@TODO FIXME
+    LOG.info(String.format("segment out put path is %s", segmentDirectory));
+    hdfsDataSegmentPusherConfig.setStorageDirectory("/druid/segments");
+
     final DataSegmentPusher hdfsDataSegmentPusher = new HdfsDataSegmentPusher(
             hdfsDataSegmentPusherConfig, jc, DruidStorageHandlerUtils.JSON_MAPPER);
     // Parse the configuration parameters
