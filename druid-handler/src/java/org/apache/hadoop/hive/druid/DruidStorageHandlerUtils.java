@@ -17,28 +17,6 @@
  */
 package org.apache.hadoop.hive.druid;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.InetAddress;
-import java.net.URL;
-import java.net.UnknownHostException;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.retry.RetryPolicies;
-import org.apache.hadoop.io.retry.RetryProxy;
-import org.jboss.netty.handler.codec.http.HttpHeaders;
-import org.jboss.netty.handler.codec.http.HttpMethod;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.google.common.base.Throwables;
@@ -49,7 +27,6 @@ import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.Request;
 import com.metamx.http.client.response.InputStreamResponseHandler;
-
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.BaseQuery;
 import io.druid.segment.IndexIO;
@@ -58,14 +35,34 @@ import io.druid.segment.IndexMergerV9;
 import io.druid.segment.column.ColumnConfig;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.retry.RetryPolicies;
+import org.apache.hadoop.io.retry.RetryProxy;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.URL;
+import java.net.UnknownHostException;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Utils class for Druid storage handler.
  */
 public final class DruidStorageHandlerUtils {
 
+
+
+
   private static final String SMILE_CONTENT_TYPE = "application/x-jackson-smile";
-  private static final String PATH_VARIABLE = "path";
 
   /**
    * Mapper to use to serialize/deserialize Druid objects (JSON)
@@ -162,21 +159,7 @@ public final class DruidStorageHandlerUtils {
       }
       for (FileStatus fileStatus : fs.listStatus(taskDir))
       {
-        DataSegment segment = JSON_MAPPER.readValue(fs.open(fileStatus.getPath()), DataSegment.class);
-        Map<String, Object> loadSpec = segment.getLoadSpec();
-        Path tmpPath = new Path((String) loadSpec.get(PATH_VARIABLE));
-        // path format -- > .../dataSource/interval/version/partitionNum/xxx.zip
-        Deque<String> stack = new ArrayDeque<>(4);
-        for (int i = 0; i < 4; i++) {
-          stack.add(tmpPath.getName());
-          tmpPath = tmpPath.getParent();
-        }
-        Path finalPath = status.getPath();
-        for (int i = 0; i < 4; i++) {
-          finalPath = finalPath.suffix(stack.pop());
-        }
-        loadSpec.put(PATH_VARIABLE, finalPath);
-        segment = segment.withLoadSpec(loadSpec);
+        final DataSegment segment = JSON_MAPPER.readValue(fs.open(fileStatus.getPath()), DataSegment.class);
         publishedSegmentsBuilder.add(segment);
       }
     }
