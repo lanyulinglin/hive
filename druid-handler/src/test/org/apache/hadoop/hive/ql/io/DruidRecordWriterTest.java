@@ -25,7 +25,7 @@ import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
 import org.apache.hadoop.hive.druid.DruidStorageHandlerUtils;
-import org.apache.hadoop.hive.druid.io.DruidOutputFormat;
+import org.apache.hadoop.hive.druid.io.DruidRecordWriter;
 import org.apache.hadoop.hive.druid.serde.DruidWritable;
 import org.apache.hadoop.mapred.JobConf;
 import org.joda.time.DateTime;
@@ -44,7 +44,7 @@ public class DruidRecordWriterTest
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-  private DruidOutputFormat.DruidRecordWriter druidRecordWriter;
+  private DruidRecordWriter druidRecordWriter;
   @Test
   public void testWrite() throws IOException
   {
@@ -93,7 +93,7 @@ public class DruidRecordWriterTest
     JobConf jobConf = new JobConf(config);
     LocalFileSystem localFileSystem = FileSystem.getLocal(config);
 
-    druidRecordWriter = new DruidOutputFormat.DruidRecordWriter(dataSchema, tuningConfig, new LocalDataSegmentPusher(new LocalDataSegmentPusherConfig(), DruidStorageHandlerUtils.JSON_MAPPER), 20, new Path("/tmp/slim/test"), localFileSystem
+    druidRecordWriter = new DruidRecordWriter(dataSchema, tuningConfig, new LocalDataSegmentPusher(new LocalDataSegmentPusherConfig(), DruidStorageHandlerUtils.JSON_MAPPER), 20, new Path("/tmp/slim/test"), localFileSystem
     );
     druidRecordWriter.write(null);
     DruidWritable druidWritable = new DruidWritable(ImmutableMap.<String, Object>of(
