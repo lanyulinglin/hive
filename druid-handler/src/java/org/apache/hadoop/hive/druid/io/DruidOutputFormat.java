@@ -86,20 +86,18 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
                     HiveConf.getVar(jc, HiveConf.ConfVars.HIVE_DRUID_INDEXING_GRANULARITY);
     final String dataSource = tableProperties.getProperty(Constants.DRUID_DATA_SOURCE);
     final String segmentDirectory =
-            tableProperties.getProperty(Constants.DRUID_SEGMENT_DIRECTORY) == null
+            tableProperties.getProperty(Constants.DRUID_SEGMENT_DIRECTORY) != null
                     ? tableProperties.getProperty(Constants.DRUID_SEGMENT_DIRECTORY)
                     : HiveConf.getVar(jc, HiveConf.ConfVars.DRUID_SEGMENT_DIRECTORY);
 
     final HdfsDataSegmentPusherConfig hdfsDataSegmentPusherConfig = new HdfsDataSegmentPusherConfig();
-    //@TODO FIXME
-    LOG.info(String.format("segment out put path is %s", segmentDirectory));
-    hdfsDataSegmentPusherConfig.setStorageDirectory("/druid/segments");
-
+    hdfsDataSegmentPusherConfig.setStorageDirectory(segmentDirectory);
     final DataSegmentPusher hdfsDataSegmentPusher = new HdfsDataSegmentPusher(
             hdfsDataSegmentPusherConfig, jc, DruidStorageHandlerUtils.JSON_MAPPER);
     // Parse the configuration parameters
     final String columnNameProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMNS);
     final String columnTypeProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMN_TYPES);
+
     if (StringUtils.isEmpty(columnNameProperty) || StringUtils.isEmpty(columnTypeProperty)) {
       throw new IOException("List of columns not present");
     }
