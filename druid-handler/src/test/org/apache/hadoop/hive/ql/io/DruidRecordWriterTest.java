@@ -15,7 +15,6 @@ import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.data.input.impl.TimestampSpec;
 import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -57,7 +56,7 @@ import java.util.List;
 import java.util.Map;
 
 public class DruidRecordWriterTest {
-  private ObjectMapper objectMapper = new DefaultObjectMapper();
+  private ObjectMapper objectMapper = DruidStorageHandlerUtils.JSON_MAPPER;
 
   private static final Interval INTERVAL_FULL = new Interval("2014-10-22T00:00:00Z/P1D");
 
@@ -90,7 +89,7 @@ public class DruidRecordWriterTest {
   @Test
   public void testWrite() throws IOException, SegmentLoadingException {
 
-    String datasourceName = "testDataSource";
+    final String datasourceName = "testDataSource";
     final File segmentOutputDir = temporaryFolder.newFolder();
     final File segmentDescriptorOutputDir = temporaryFolder.newFolder();
     Configuration config = new Configuration();
@@ -118,14 +117,13 @@ public class DruidRecordWriterTest {
 
     RealtimeTuningConfig tuningConfig = RealtimeTuningConfig
             .makeDefaultTuningConfig(temporaryFolder.newFolder());
-
     LocalFileSystem localFileSystem = FileSystem.getLocal(config);
-
     DataSegmentPusher dataSegmentPusher = new LocalDataSegmentPusher(
             new LocalDataSegmentPusherConfig() {
               @Override
               public File getStorageDirectory() {return segmentOutputDir;}
-            }, DruidStorageHandlerUtils.JSON_MAPPER);
+            }, objectMapper);
+
     druidRecordWriter = new DruidRecordWriter(dataSchema, tuningConfig, dataSegmentPusher, 20,
             new Path(segmentDescriptorOutputDir.getAbsolutePath(),
                     DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME
@@ -151,19 +149,14 @@ public class DruidRecordWriterTest {
       druidRecordWriter.write(druidWritable);
     }
     druidRecordWriter.close(false);
-    // Assert descriptor is written
     List<DataSegment> dataSegmentList = DruidStorageHandlerUtils
             .getPublishedSegments(new Path(segmentDescriptorOutputDir.getParent()), config);
     Assert.assertEquals(1, dataSegmentList.size());
-
-    //Assert segment is created
-
     File tmpUnzippedSegmentDir = temporaryFolder.newFolder();
     new LocalDataSegmentPuller().getSegmentFiles(dataSegmentList.get(0), tmpUnzippedSegmentDir);
     final QueryableIndex queryableIndex = DruidStorageHandlerUtils.INDEX_IO
             .loadIndex(tmpUnzippedSegmentDir);
 
-    queryableIndex.getMetadata();
     QueryableIndexStorageAdapter adapter = new QueryableIndexStorageAdapter(queryableIndex);
 
     Firehose firehose = new IngestSegmentFirehose(
@@ -209,7 +202,7 @@ public class DruidRecordWriterTest {
   @Test
   public void testSerDesr() throws IOException {
     String segment = "{\"dataSource\":\"datasource2015\",\"interval\":\"2015-06-01T00:00:00.000-04:00/2015-06-02T00:00:00.000-04:00\",\"version\":\"2016-11-04T19:24:01.732-04:00\",\"loadSpec\":{\"type\":\"hdfs\",\"path\":\"hdfs://cn105-10.l42scl.hortonworks.com:8020/apps/hive/warehouse/druid.db/.hive-staging_hive_2016-11-04_19-23-50_168_1550339856804207572-1/_task_tmp.-ext-10002/_tmp.000000_0/datasource2015/20150601T000000.000-0400_20150602T000000.000-0400/2016-11-04T19_24_01.732-04_00/0/index.zip\"},\"dimensions\":\"dimension1\",\"metrics\":\"bigint\",\"shardSpec\":{\"type\":\"linear\",\"partitionNum\":0},\"binaryVersion\":9,\"size\":1765,\"identifier\":\"datasource2015_2015-06-01T00:00:00.000-04:00_2015-06-02T00:00:00.000-04:00_2016-11-04T19:24:01.732-04:00\"}";
-    DataSegment dataSegment = DruidStorageHandlerUtils.JSON_MAPPER.readerFor(DataSegment.class)
+    DataSegment dataSegment = objectMapper.readerFor(DataSegment.class)
             .readValue(segment);
     Assert.assertTrue(dataSegment.getDataSource().equals("datasource2015"));
   }
