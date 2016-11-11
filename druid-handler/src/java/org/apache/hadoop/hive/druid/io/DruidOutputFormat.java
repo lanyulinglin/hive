@@ -124,11 +124,11 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         case serdeConstants.SMALLINT_TYPE_NAME:
         case serdeConstants.INT_TYPE_NAME:
         case serdeConstants.BIGINT_TYPE_NAME:
-          af = new LongSumAggregatorFactory(f.getTypeName(), f.getTypeName());
+          af = new LongSumAggregatorFactory(columnNames.get(i), columnNames.get(i));
           break;
         case serdeConstants.FLOAT_TYPE_NAME:
         case serdeConstants.DOUBLE_TYPE_NAME:
-          af = new DoubleSumAggregatorFactory(f.getTypeName(), f.getTypeName());
+          af = new DoubleSumAggregatorFactory(columnNames.get(i), columnNames.get(i));
           break;
         default:
           // Dimension or timestamp
