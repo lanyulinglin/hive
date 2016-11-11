@@ -230,8 +230,6 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
       }
     });
 
-    LOG.info(String.format("event is [%s]", event));
-
     InputRow inputRow = new MapBasedInputRow(
             timestamp,
             dataSchema.getParser()

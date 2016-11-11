@@ -17,17 +17,8 @@
  */
 package org.apache.hadoop.hive.druid.io;
 
-import io.druid.data.input.impl.DimensionSchema;
-import io.druid.data.input.impl.DimensionsSpec;
-import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.MapInputRowParser;
-import io.druid.data.input.impl.StringDimensionSchema;
-import io.druid.data.input.impl.TimeAndDimsParseSpec;
-import io.druid.data.input.impl.TimestampSpec;
+import com.google.common.base.Preconditions;
 import io.druid.java.util.common.Granularity;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.DoubleSumAggregatorFactory;
-import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.indexing.granularity.GranularitySpec;
@@ -36,20 +27,15 @@ import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.segment.realtime.plumber.CustomVersioningPolicy;
 import io.druid.storage.hdfs.HdfsDataSegmentPusher;
 import io.druid.storage.hdfs.HdfsDataSegmentPusherConfig;
-import org.apache.calcite.adapter.druid.DruidTable;
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.druid.DruidStorageHandlerUtils;
+import org.apache.hadoop.hive.druid.serde.DruidSerDeUtils;
 import org.apache.hadoop.hive.druid.serde.DruidWritable;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
-import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
@@ -59,9 +45,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.hadoop.hive.druid.DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME;
@@ -94,60 +77,6 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     hdfsDataSegmentPusherConfig.setStorageDirectory(segmentDirectory);
     final DataSegmentPusher hdfsDataSegmentPusher = new HdfsDataSegmentPusher(
             hdfsDataSegmentPusherConfig, jc, DruidStorageHandlerUtils.JSON_MAPPER);
-    // Parse the configuration parameters
-    final String columnNameProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMNS);
-    final String columnTypeProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMN_TYPES);
-
-    if (StringUtils.isEmpty(columnNameProperty) || StringUtils.isEmpty(columnTypeProperty)) {
-      throw new IOException("List of columns not present");
-    }
-    ArrayList<String> columnNames = new ArrayList<String>();
-    for (String name : columnNameProperty.split(",")) {
-      columnNames.add(name);
-    }
-    if (!columnNames.contains(DruidTable.DEFAULT_TIMESTAMP_COLUMN)) {
-      throw new IOException("Timestamp column (' " + DruidTable.DEFAULT_TIMESTAMP_COLUMN +
-              "') not specified in create table; list of columns is : " +
-              tableProperties.getProperty(serdeConstants.LIST_COLUMNS));
-    }
-    ArrayList<TypeInfo> columnTypes = TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty);
-
-    // Default, all columns that are not metrics or timestamp, are treated as dimensions
-    final List<DimensionSchema> dimensions = new ArrayList<>();
-    final List<AggregatorFactory> aggregatorFactories = new ArrayList<>();
-    for (int i = 0; i < columnTypes.size(); i++) {
-      TypeInfo f = columnTypes.get(i);
-      assert f.getCategory() == Category.PRIMITIVE;
-      AggregatorFactory af;
-      switch (f.getTypeName()) {
-        case serdeConstants.TINYINT_TYPE_NAME:
-        case serdeConstants.SMALLINT_TYPE_NAME:
-        case serdeConstants.INT_TYPE_NAME:
-        case serdeConstants.BIGINT_TYPE_NAME:
-          af = new LongSumAggregatorFactory(columnNames.get(i), columnNames.get(i));
-          break;
-        case serdeConstants.FLOAT_TYPE_NAME:
-        case serdeConstants.DOUBLE_TYPE_NAME:
-          af = new DoubleSumAggregatorFactory(columnNames.get(i), columnNames.get(i));
-          break;
-        default:
-          // Dimension or timestamp
-          String columnName = columnNames.get(i);
-          if (!columnName.equals(DruidTable.DEFAULT_TIMESTAMP_COLUMN)) {
-            dimensions.add(new StringDimensionSchema(columnName));
-          }
-          continue;
-      }
-      aggregatorFactories.add(af);
-    }
-
-    final InputRowParser inputRowParser = new MapInputRowParser(new TimeAndDimsParseSpec(
-            new TimestampSpec(DruidTable.DEFAULT_TIMESTAMP_COLUMN, "auto", null),
-            new DimensionsSpec(dimensions, null, null)
-    ));
-
-    Map<String, Object> inputParser = DruidStorageHandlerUtils.JSON_MAPPER
-            .convertValue(inputRowParser, Map.class);
 
     final GranularitySpec granularitySpec = new UniformGranularitySpec(
             Granularity.valueOf(segmentGranularity),
@@ -155,9 +84,9 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
             null
     );
     final DataSchema dataSchema = new DataSchema(
-            dataSource,
-            inputParser,
-            aggregatorFactories.toArray(new AggregatorFactory[aggregatorFactories.size()]),
+            Preconditions.checkNotNull(dataSource, "Data Source is null"),
+            DruidStorageHandlerUtils.getDefaultInputRowParser(),
+            DruidSerDeUtils.fromTableProperties(tableProperties),
             granularitySpec,
             DruidStorageHandlerUtils.JSON_MAPPER
     );
@@ -169,25 +98,10 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig
             .makeDefaultTuningConfig(new File(
                     basePersistDirectory)).withVersioningPolicy(new CustomVersioningPolicy(null));
-    RealtimeTuningConfig realtimeTuningConfig1 = new RealtimeTuningConfig(
-            1000,
-            null,
-            null, //default window period of 10 minutes
-            new File(basePersistDirectory), // base persist dir ignored by Realtime Index task
-            new CustomVersioningPolicy(null),
-            null,
-            null,
-            null,
-            null,
-            null,
-            0,
-            0,
-            Boolean.TRUE,
-            null
-    );
+    LOG.debug(String.format("running with DataSchema [%s] ", dataSchema));
     return new DruidRecordWriter(
             dataSchema,
-            realtimeTuningConfig1,
+            realtimeTuningConfig,
             hdfsDataSegmentPusher, maxPartitionSize,
             makeSegmentDescriptorOutputDir(finalOutPath),
             finalOutPath.getFileSystem(jc)
