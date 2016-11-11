@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.hive.druid.serde;
 
+import com.google.common.collect.ImmutableList;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -32,7 +33,6 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.spark_project.guava.collect.ImmutableList;
 
 import java.util.ArrayList;
 import java.util.List;
