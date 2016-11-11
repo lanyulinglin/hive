@@ -169,10 +169,25 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig
             .makeDefaultTuningConfig(new File(
                     basePersistDirectory)).withVersioningPolicy(new CustomVersioningPolicy(null));
-
+    RealtimeTuningConfig realtimeTuningConfig1 = new RealtimeTuningConfig(
+            1000,
+            null,
+            null, //default window period of 10 minutes
+            new File(basePersistDirectory), // base persist dir ignored by Realtime Index task
+            new CustomVersioningPolicy(null),
+            null,
+            null,
+            null,
+            null,
+            null,
+            0,
+            0,
+            Boolean.TRUE,
+            null
+    );
     return new DruidRecordWriter(
             dataSchema,
-            realtimeTuningConfig,
+            realtimeTuningConfig1,
             hdfsDataSegmentPusher, maxPartitionSize,
             makeSegmentDescriptorOutputDir(finalOutPath),
             finalOutPath.getFileSystem(jc)
