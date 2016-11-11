@@ -95,6 +95,7 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
     this.segmentsDescriptorDir = segmentsDescriptorsDir;
     this.fileSystem = Preconditions.checkNotNull(fileSystem);
     committerSupplier = Suppliers.ofInstance(Committers.nil());
+    LOG.info(String.format("Dataschema is [%s]", this.dataSchema));
   }
 
   /**
