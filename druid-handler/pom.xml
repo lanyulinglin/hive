@@ -106,6 +106,7 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- @TODO maybe include to shading-->
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
