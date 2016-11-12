@@ -28,11 +28,6 @@ import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.Request;
 import com.metamx.http.client.response.InputStreamResponseHandler;
-import io.druid.data.input.impl.DimensionsSpec;
-import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.MapInputRowParser;
-import io.druid.data.input.impl.TimeAndDimsParseSpec;
-import io.druid.data.input.impl.TimestampSpec;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.BaseQuery;
 import io.druid.segment.IndexIO;
@@ -41,7 +36,6 @@ import io.druid.segment.IndexMergerV9;
 import io.druid.segment.column.ColumnConfig;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
-import org.apache.calcite.adapter.druid.DruidTable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -58,7 +52,6 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -220,17 +213,5 @@ public final class DruidStorageHandlerUtils {
   public interface DataPusher
   {
     long push() throws IOException;
-  }
-
-  public static Map<String, Object> getDefaultInputRowParser()
-  {
-    final InputRowParser inputRowParser = new MapInputRowParser(new TimeAndDimsParseSpec(
-            new TimestampSpec(DruidTable.DEFAULT_TIMESTAMP_COLUMN, "auto", null),
-            new DimensionsSpec(null, null, null)
-    ));
-
-    Map<String, Object> inputParser = DruidStorageHandlerUtils.JSON_MAPPER
-            .convertValue(inputRowParser, Map.class);
-    return inputParser;
   }
 }

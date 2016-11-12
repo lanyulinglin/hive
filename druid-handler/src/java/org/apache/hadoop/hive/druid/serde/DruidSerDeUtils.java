@@ -17,26 +17,11 @@
  */
 package org.apache.hadoop.hive.druid.serde;
 
-import com.google.common.collect.ImmutableList;
-import io.druid.data.input.impl.DimensionSchema;
-import io.druid.data.input.impl.StringDimensionSchema;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.DoubleSumAggregatorFactory;
-import io.druid.query.aggregation.LongSumAggregatorFactory;
-import org.apache.calcite.adapter.druid.DruidTable;
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
 
 /**
  * Utils class for Druid SerDe.
@@ -95,61 +80,6 @@ public final class DruidSerDeUtils {
         LOG.warn("Transformation to STRING for unknown type " + typeName);
         return serdeConstants.STRING_TYPE_NAME;
     }
-  }
-
-  public static AggregatorFactory[] fromTableProperties(final Properties tableProperties) {
-    // Parse the configuration parameters
-    final String columnNameProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMNS);
-    final String columnTypeProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMN_TYPES);
-
-    if (StringUtils.isEmpty(columnNameProperty) || StringUtils.isEmpty(columnTypeProperty)) {
-      throw new IllegalStateException(
-              String.format("List of columns names [%s] or columns type [%s] is/are not present",
-                      columnNameProperty, columnTypeProperty
-              ));
-    }
-    ArrayList<String> columnNames = new ArrayList<String>();
-    for (String name : columnNameProperty.split(",")) {
-      columnNames.add(name);
-    }
-    if (!columnNames.contains(DruidTable.DEFAULT_TIMESTAMP_COLUMN)) {
-      throw new IllegalStateException("Timestamp column (' " + DruidTable.DEFAULT_TIMESTAMP_COLUMN +
-              "') not specified in create table; list of columns is : " +
-              tableProperties.getProperty(serdeConstants.LIST_COLUMNS));
-    }
-    ArrayList<TypeInfo> columnTypes = TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty);
-
-    // Default, all columns that are not metrics or timestamp, are treated as dimensions
-    final List<DimensionSchema> dimensions = new ArrayList<>();
-    ImmutableList.Builder<AggregatorFactory> aggregatorFactoryBuilder = ImmutableList.builder();
-    for (int i = 0; i < columnTypes.size(); i++) {
-      TypeInfo f = columnTypes.get(i);
-      assert f.getCategory() == ObjectInspector.Category.PRIMITIVE;
-      AggregatorFactory af;
-      switch (f.getTypeName()) {
-        case serdeConstants.TINYINT_TYPE_NAME:
-        case serdeConstants.SMALLINT_TYPE_NAME:
-        case serdeConstants.INT_TYPE_NAME:
-        case serdeConstants.BIGINT_TYPE_NAME:
-          af = new LongSumAggregatorFactory(columnNames.get(i), columnNames.get(i));
-          break;
-        case serdeConstants.FLOAT_TYPE_NAME:
-        case serdeConstants.DOUBLE_TYPE_NAME:
-          af = new DoubleSumAggregatorFactory(columnNames.get(i), columnNames.get(i));
-          break;
-        default:
-          // Dimension or timestamp
-          String columnName = columnNames.get(i);
-          if (!columnName.equals(DruidTable.DEFAULT_TIMESTAMP_COLUMN)) {
-            dimensions.add(new StringDimensionSchema(columnName));
-          }
-          continue;
-      }
-      aggregatorFactoryBuilder.add(af);
-    }
-    List<AggregatorFactory> aggregatorFactories = aggregatorFactoryBuilder.build();
-
-    return aggregatorFactories.toArray(new AggregatorFactory[aggregatorFactories.size()]);
   }
 
 }

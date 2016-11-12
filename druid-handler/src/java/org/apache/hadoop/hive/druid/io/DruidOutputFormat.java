@@ -18,7 +18,18 @@
 package org.apache.hadoop.hive.druid.io;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import io.druid.data.input.impl.DimensionSchema;
+import io.druid.data.input.impl.DimensionsSpec;
+import io.druid.data.input.impl.InputRowParser;
+import io.druid.data.input.impl.MapInputRowParser;
+import io.druid.data.input.impl.StringDimensionSchema;
+import io.druid.data.input.impl.TimeAndDimsParseSpec;
+import io.druid.data.input.impl.TimestampSpec;
 import io.druid.java.util.common.Granularity;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.DoubleSumAggregatorFactory;
+import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.indexing.granularity.GranularitySpec;
@@ -27,15 +38,20 @@ import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.segment.realtime.plumber.CustomVersioningPolicy;
 import io.druid.storage.hdfs.HdfsDataSegmentPusher;
 import io.druid.storage.hdfs.HdfsDataSegmentPusherConfig;
+import org.apache.calcite.adapter.druid.DruidTable;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.druid.DruidStorageHandlerUtils;
-import org.apache.hadoop.hive.druid.serde.DruidSerDeUtils;
 import org.apache.hadoop.hive.druid.serde.DruidWritable;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
+import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
@@ -45,6 +61,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.hadoop.hive.druid.DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME;
@@ -83,10 +102,68 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
             null,
             null
     );
+
+    final String columnNameProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMNS);
+    final String columnTypeProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMN_TYPES);
+
+    if (StringUtils.isEmpty(columnNameProperty) || StringUtils.isEmpty(columnTypeProperty)) {
+      throw new IllegalStateException(
+              String.format("List of columns names [%s] or columns type [%s] is/are not present",
+                      columnNameProperty, columnTypeProperty
+              ));
+    }
+    ArrayList<String> columnNames = new ArrayList<String>();
+    for (String name : columnNameProperty.split(",")) {
+      columnNames.add(name);
+    }
+    if (!columnNames.contains(DruidTable.DEFAULT_TIMESTAMP_COLUMN)) {
+      throw new IllegalStateException("Timestamp column (' " + DruidTable.DEFAULT_TIMESTAMP_COLUMN +
+              "') not specified in create table; list of columns is : " +
+              tableProperties.getProperty(serdeConstants.LIST_COLUMNS));
+    }
+    ArrayList<TypeInfo> columnTypes = TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty);
+
+    // Default, all columns that are not metrics or timestamp, are treated as dimensions
+    final List<DimensionSchema> dimensions = new ArrayList<>();
+    ImmutableList.Builder<AggregatorFactory> aggregatorFactoryBuilder = ImmutableList.builder();
+    for (int i = 0; i < columnTypes.size(); i++) {
+      TypeInfo f = columnTypes.get(i);
+      assert f.getCategory() == ObjectInspector.Category.PRIMITIVE;
+      AggregatorFactory af;
+      switch (f.getTypeName()) {
+        case serdeConstants.TINYINT_TYPE_NAME:
+        case serdeConstants.SMALLINT_TYPE_NAME:
+        case serdeConstants.INT_TYPE_NAME:
+        case serdeConstants.BIGINT_TYPE_NAME:
+          af = new LongSumAggregatorFactory(columnNames.get(i), columnNames.get(i));
+          break;
+        case serdeConstants.FLOAT_TYPE_NAME:
+        case serdeConstants.DOUBLE_TYPE_NAME:
+          af = new DoubleSumAggregatorFactory(columnNames.get(i), columnNames.get(i));
+          break;
+        default:
+          // Dimension or timestamp
+          String columnName = columnNames.get(i);
+          if (!columnName.equals(DruidTable.DEFAULT_TIMESTAMP_COLUMN)) {
+            dimensions.add(new StringDimensionSchema(columnName));
+          }
+          continue;
+      }
+      aggregatorFactoryBuilder.add(af);
+    }
+    List<AggregatorFactory> aggregatorFactories = aggregatorFactoryBuilder.build();
+    final InputRowParser inputRowParser = new MapInputRowParser(new TimeAndDimsParseSpec(
+            new TimestampSpec(DruidTable.DEFAULT_TIMESTAMP_COLUMN, "auto", null),
+            new DimensionsSpec(dimensions, null, null)
+    ));
+
+    Map<String, Object> inputParser = DruidStorageHandlerUtils.JSON_MAPPER
+            .convertValue(inputRowParser, Map.class);
+
     final DataSchema dataSchema = new DataSchema(
             Preconditions.checkNotNull(dataSource, "Data Source is null"),
-            DruidStorageHandlerUtils.getDefaultInputRowParser(),
-            DruidSerDeUtils.fromTableProperties(tableProperties),
+            inputParser,
+            aggregatorFactories.toArray(new AggregatorFactory[aggregatorFactories.size()]),
             granularitySpec,
             DruidStorageHandlerUtils.JSON_MAPPER
     );
