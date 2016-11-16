@@ -60,9 +60,6 @@ import java.util.concurrent.TimeUnit;
  */
 public final class DruidStorageHandlerUtils {
 
-
-
-
   private static final String SMILE_CONTENT_TYPE = "application/x-jackson-smile";
 
   /**

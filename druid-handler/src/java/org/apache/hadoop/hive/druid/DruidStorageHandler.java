@@ -17,9 +17,14 @@
  */
 package org.apache.hadoop.hive.druid;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Interner;
+import com.google.common.collect.Interners;
+import com.google.common.collect.Lists;
 import io.druid.indexer.SQLMetadataStorageUpdaterJobHandler;
+import io.druid.java.util.common.MapUtils;
 import io.druid.metadata.MetadataStorageConnectorConfig;
 import io.druid.metadata.MetadataStorageTablesConfig;
 import io.druid.metadata.SQLMetadataConnector;
@@ -42,11 +47,23 @@ import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.OutputFormat;
+import org.skife.jdbi.v2.FoldController;
+import org.skife.jdbi.v2.Folder3;
+import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.TransactionCallback;
+import org.skife.jdbi.v2.TransactionStatus;
+import org.skife.jdbi.v2.tweak.HandleCallback;
+import org.skife.jdbi.v2.util.ByteArrayMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * DruidStorageHandler provides a HiveStorageHandler implementation for Druid.
@@ -56,6 +73,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
 {
 
   protected static final Logger LOG = LoggerFactory.getLogger(DruidStorageHandler.class);
+  private static final Interner<DataSegment> DATA_SEGMENT_INTERNER = Interners.newWeakInterner();
 
   public static final String SEGMENTS_DESCRIPTOR_DIR_NAME = "segmentsDescriptorDir";
 
@@ -130,6 +148,12 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     }
     if (table.getSd().getBucketColsSize() != 0) {
       throw new MetaException("CLUSTERED BY may not be specified for Druid");
+    }
+    String dataSourceName = Preconditions.checkNotNull(table.getTableName(), "WTF dataSource name is null !");
+
+    Collection<String> existingDataSources = getAllDatasourceNames();
+    if (existingDataSources.contains(dataSourceName)) {
+      throw new IllegalStateException(String.format("Data source [%s] already existing please drop the data source or use insert statement", dataSourceName));
     }
   }
 
@@ -238,6 +262,130 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     return;
   }
 
+  private Collection<String> getAllDatasourceNames()
+  {
+      return connector.getDBI().withHandle(
+              new HandleCallback<List<String>>()
+              {
+                @Override
+                public List<String> withHandle(Handle handle) throws Exception
+                {
+                  return handle.createQuery(
+                          String.format("SELECT DISTINCT(datasource) FROM %s WHERE used = true", druidMetadataStorageTablesConfig.getSegmentsTable())
+                  )
+                          .fold(
+                                  Lists.<String>newArrayList(),
+                                  new Folder3<ArrayList<String>, Map<String, Object>>()
+                                  {
+                                    @Override
+                                    public ArrayList<String> fold(
+                                            ArrayList<String> druidDataSources,
+                                            Map<String, Object> stringObjectMap,
+                                            FoldController foldController,
+                                            StatementContext statementContext
+                                    ) throws SQLException
+                                    {
+                                      druidDataSources.add(
+                                              MapUtils.getString(stringObjectMap, "datasource")
+                                      );
+                                      return druidDataSources;
+                                    }
+                                  }
+                          );
+
+                }
+              }
+      );
+
+  }
+
+  private boolean removeDatasource(final String dataSource)
+  {
+    try {
+      if (!getAllDatasourceNames().contains(dataSource)) {
+        LOG.warn(String.format("Cannot delete datasource %s, does not exist", dataSource));
+        return false;
+      }
+
+      connector.getDBI().withHandle(
+              new HandleCallback<Void>()
+              {
+                @Override
+                public Void withHandle(Handle handle) throws Exception
+                {
+                  handle.createStatement(
+                          String.format("UPDATE %s SET used=false WHERE dataSource = :dataSource", druidMetadataStorageTablesConfig.getSegmentsTable())
+                  )
+                          .bind("dataSource", dataSource)
+                          .execute();
+
+                  return null;
+                }
+              }
+      );
+
+    }
+    catch (Exception e) {
+      LOG.error(String.format("Error removing dataSource %s", dataSource), e);
+      return false;
+    }
+    return true;
+  }
+
+  private List<DataSegment> getDataSegment(final String dataSource)
+  {
+    List<DataSegment> segmentList = connector.retryTransaction(
+            new TransactionCallback<List<DataSegment>>()
+            {
+              @Override
+              public List<DataSegment> inTransaction(
+                      Handle handle, TransactionStatus status
+              ) throws Exception
+              {
+                return handle
+                        .createQuery(String.format(
+                                "SELECT payload FROM %s WHERE dataSource = :dataSource",
+                                druidMetadataStorageTablesConfig.getSegmentsTable()
+                        ))
+                        .setFetchSize(getStreamingFetchSize())
+                        .bind("dataSource", dataSource)
+                        .map(ByteArrayMapper.FIRST)
+                        .fold(
+                                new ArrayList<DataSegment>(),
+                                new Folder3<List<DataSegment>, byte[]>()
+                                {
+                                  @Override
+                                  public List<DataSegment> fold(List<DataSegment> accumulator,
+                                          byte[] payload, FoldController control,
+                                          StatementContext ctx
+                                  ) throws SQLException
+                                  {
+                                    try {
+                                      final DataSegment segment = DATA_SEGMENT_INTERNER.intern(DruidStorageHandlerUtils.JSON_MAPPER.readValue(
+                                              payload,
+                                              DataSegment.class
+                                      ));
+
+                                      accumulator.add(segment);
+                                      return accumulator;
+                                    }
+                                    catch (Exception e) {
+                                      throw new SQLException(e.toString());
+                                    }
+                                  }
+                                }
+                        );
+              }
+            }
+    , 3, SQLMetadataConnector.DEFAULT_MAX_TRIES);
+    return segmentList;
+  }
+
+  private int getStreamingFetchSize() {
+    //@TODO this works only for my-sql case
+    return Integer.MIN_VALUE;
+  }
+
   @Override
   public void preDropTable(Table table) throws MetaException
   {
@@ -253,7 +401,27 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   @Override
   public void commitDropTable(Table table, boolean deleteData) throws MetaException
   {
-    // Nothing to do
+    String dataSourceName = Preconditions.checkNotNull(table.getTableName(), "WTF dataSource name is null !");
+
+    if (deleteData)
+    {
+      List<DataSegment> dataSegmentList = getDataSegment(dataSourceName);
+      if (dataSegmentList.isEmpty()) {
+        LOG.info("nothing to delete");
+        return;
+      }
+      for (DataSegment dataSegment:
+           dataSegmentList) {
+        try {
+          deleteSegment(dataSegment);
+        } catch (SegmentLoadingException e) {
+          LOG.error(String.format("Error while deleting segment [%s]", dataSegment.getIdentifier()), e);
+        }
+      }
+    }
+    if (removeDatasource(dataSourceName)) {
+     LOG.info(String.format("Successfully dropped dataSource [%s]", dataSourceName));
+    }
   }
 
   @Override
