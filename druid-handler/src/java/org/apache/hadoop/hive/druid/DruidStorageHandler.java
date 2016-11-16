@@ -152,6 +152,8 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     String dataSourceName = Preconditions.checkNotNull(table.getTableName(), "WTF dataSource name is null !");
 
     Collection<String> existingDataSources = getAllDatasourceNames();
+    LOG.debug(String.format("pre create datasource [%s]", dataSourceName));
+    LOG.info(String.format("Existing data sources [%s]", existingDataSources));
     if (existingDataSources.contains(dataSourceName)) {
       throw new IllegalStateException(String.format("Data source [%s] already existing please drop the data source or use insert statement", dataSourceName));
     }
