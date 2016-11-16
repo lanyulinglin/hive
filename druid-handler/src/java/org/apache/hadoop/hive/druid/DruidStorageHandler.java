@@ -152,10 +152,9 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     String dataSourceName = Preconditions.checkNotNull(table.getParameters().get(Constants.DRUID_DATA_SOURCE), "WTF dataSource name is null !");
 
     Collection<String> existingDataSources = getAllDatasourceNames();
-    LOG.debug(String.format("pre create datasource [%s]", dataSourceName));
-    LOG.info(String.format("Existing data sources [%s]", existingDataSources));
+    LOG.debug(String.format("pre-create data source with name [%s]", dataSourceName));
     if (existingDataSources.contains(dataSourceName)) {
-      throw new IllegalStateException(String.format("Data source [%s] already existing please drop the data source or use insert statement", dataSourceName));
+      throw new IllegalStateException(String.format("Data source [%s] already existing", dataSourceName));
     }
   }
 
@@ -405,7 +404,8 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   {
     String dataSourceName = Preconditions.checkNotNull(table.getParameters().get(Constants.DRUID_DATA_SOURCE), "WTF dataSource name is null !");
 
-    if (deleteData)
+    LOG.info(String.format("asked to drop with purge [%s] and deleteData [%s]", table.getParameters().get("ifPurge"), deleteData));
+    if (deleteData == true)
     {
       List<DataSegment> dataSegmentList = getDataSegment(dataSourceName);
       if (dataSegmentList.isEmpty()) {
@@ -415,7 +415,6 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
       for (DataSegment dataSegment:
            dataSegmentList) {
         try {
-          LOG.info(String.format("Deleting segment [%s] with path [%s]", dataSegment.getIdentifier(), dataSegment.getLoadSpec().get("path")));
           deleteSegment(dataSegment);
         } catch (SegmentLoadingException e) {
           LOG.error(String.format("Error while deleting segment [%s]", dataSegment.getIdentifier()), e);
