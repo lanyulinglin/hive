@@ -81,7 +81,7 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
             Preconditions.checkNotNull(dataSegmentPusher),
             DruidStorageHandlerUtils.JSON_MAPPER,
             DruidStorageHandlerUtils.INDEX_IO,
-            DruidStorageHandlerUtils.INDEX_MERGER
+            DruidStorageHandlerUtils.INDEX_MERGER_V9
     );
     this.tuningConfig = realtimeTuningConfig;
     this.dataSchema = dataSchema;

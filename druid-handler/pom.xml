@@ -192,6 +192,11 @@
       <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>io.druid.extensions</groupId>
+      <artifactId>postgresql-metadata-storage</artifactId>
+      <version>0.9.3-SNAPSHOT</version>
+    </dependency>
   </dependencies>
 
   <build>
