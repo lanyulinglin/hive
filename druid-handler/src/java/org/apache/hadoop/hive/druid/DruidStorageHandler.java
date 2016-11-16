@@ -199,7 +199,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   {
 
     final Path path = getPath(segment);
-    LOG.info("removing segment[%s] mapped to path[%s]", segment.getIdentifier(), path);
+    LOG.info(String.format("removing segment[%s] mapped to path[%s]", segment.getIdentifier(), path));
 
     try {
       if (path.getName().endsWith(".zip")) {
@@ -207,7 +207,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
         final FileSystem fs = path.getFileSystem(getConf());
 
         if (!fs.exists(path)) {
-          LOG.warn("Segment Path [%s] does not exist. It appears to have been deleted already.", path);
+          LOG.warn(String.format("Segment Path [%s] does not exist. It appears to have been deleted already.", path));
           return;
         }
 
