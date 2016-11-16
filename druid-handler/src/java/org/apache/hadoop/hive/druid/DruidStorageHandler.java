@@ -149,7 +149,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     if (table.getSd().getBucketColsSize() != 0) {
       throw new MetaException("CLUSTERED BY may not be specified for Druid");
     }
-    String dataSourceName = Preconditions.checkNotNull(table.getTableName(), "WTF dataSource name is null !");
+    String dataSourceName = Preconditions.checkNotNull(table.getParameters().get(Constants.DRUID_DATA_SOURCE), "WTF dataSource name is null !");
 
     Collection<String> existingDataSources = getAllDatasourceNames();
     LOG.debug(String.format("pre create datasource [%s]", dataSourceName));
@@ -403,13 +403,13 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   @Override
   public void commitDropTable(Table table, boolean deleteData) throws MetaException
   {
-    String dataSourceName = Preconditions.checkNotNull(table.getTableName(), "WTF dataSource name is null !");
+    String dataSourceName = Preconditions.checkNotNull(table.getParameters().get(Constants.DRUID_DATA_SOURCE), "WTF dataSource name is null !");
 
     if (deleteData)
     {
       List<DataSegment> dataSegmentList = getDataSegment(dataSourceName);
       if (dataSegmentList.isEmpty()) {
-        LOG.info("nothing to delete");
+        LOG.info(String.format("nothing to delete for data source [%s]", dataSourceName));
         return;
       }
       for (DataSegment dataSegment:
