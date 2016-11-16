@@ -415,6 +415,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
       for (DataSegment dataSegment:
            dataSegmentList) {
         try {
+          LOG.info(String.format("Deleting segment [%s] with path [%s]", dataSegment.getIdentifier(), dataSegment.getLoadSpec().get("path")));
           deleteSegment(dataSegment);
         } catch (SegmentLoadingException e) {
           LOG.error(String.format("Error while deleting segment [%s]", dataSegment.getIdentifier()), e);
