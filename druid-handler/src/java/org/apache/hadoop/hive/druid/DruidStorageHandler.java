@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.hive.druid;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -111,6 +112,15 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     druidSqlMetadataStorageUpdaterJobHandler = new SQLMetadataStorageUpdaterJobHandler(connector);
   }
 
+  @VisibleForTesting
+  public DruidStorageHandler(SQLMetadataConnector connector,
+          SQLMetadataStorageUpdaterJobHandler druidSqlMetadataStorageUpdaterJobHandler,
+          MetadataStorageTablesConfig druidMetadataStorageTablesConfig
+  ) {
+    this.connector = connector;
+    this.druidSqlMetadataStorageUpdaterJobHandler = druidSqlMetadataStorageUpdaterJobHandler;
+    this.druidMetadataStorageTablesConfig = druidMetadataStorageTablesConfig;
+  }
 
   @Override
   public Class<? extends InputFormat> getInputFormatClass()
@@ -192,11 +202,11 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   public void commitCreateTable(Table table) throws MetaException
   {
     LOG.info(String.format("Committing table [%s] to the druid metastore", table.getDbName()));
-    final Path segmentDescriptorDir = new Path(table.getSd().getLocation());
+    final Path tableDir = new Path(table.getSd().getLocation());
     try {
       druidSqlMetadataStorageUpdaterJobHandler.publishSegments(
               druidMetadataStorageTablesConfig.getSegmentsTable(),
-              DruidStorageHandlerUtils.getPublishedSegments(segmentDescriptorDir, getConf()),
+              DruidStorageHandlerUtils.getPublishedSegments(tableDir, getConf()),
               DruidStorageHandlerUtils.JSON_MAPPER
       );
     }
@@ -206,11 +216,12 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     }
   }
 
-  public void deleteSegment(DataSegment segment) throws SegmentLoadingException
+  @VisibleForTesting
+  protected void deleteSegment(DataSegment segment) throws SegmentLoadingException
   {
 
     final Path path = getPath(segment);
-    LOG.info(String.format("removing segment[%s] mapped to path[%s]", segment.getIdentifier(), path));
+    LOG.info(String.format("removing segment[%s], located at path[%s]", segment.getIdentifier(), path));
 
     try {
       if (path.getName().endsWith(".zip")) {
