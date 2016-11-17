@@ -19,6 +19,7 @@ package org.apache.hadoop.hive.druid.io;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
@@ -144,7 +145,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
         default:
           // Dimension or timestamp
           String columnName = columnNames.get(i);
-          if (!columnName.equals(DruidTable.DEFAULT_TIMESTAMP_COLUMN)) {
+          if (!columnName.equals(DruidTable.DEFAULT_TIMESTAMP_COLUMN) && !columnName.equals(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME)) {
             dimensions.add(new StringDimensionSchema(columnName));
           }
           continue;
@@ -154,14 +155,14 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     List<AggregatorFactory> aggregatorFactories = aggregatorFactoryBuilder.build();
     final InputRowParser inputRowParser = new MapInputRowParser(new TimeAndDimsParseSpec(
             new TimestampSpec(DruidTable.DEFAULT_TIMESTAMP_COLUMN, "auto", null),
-            new DimensionsSpec(dimensions, null, null)
+            new DimensionsSpec(dimensions, Lists.newArrayList(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME), null)
     ));
 
     Map<String, Object> inputParser = DruidStorageHandlerUtils.JSON_MAPPER
             .convertValue(inputRowParser, Map.class);
 
     final DataSchema dataSchema = new DataSchema(
-            Preconditions.checkNotNull(dataSource, "Data Source is null"),
+            Preconditions.checkNotNull(dataSource, "Data source name is null"),
             inputParser,
             aggregatorFactories.toArray(new AggregatorFactory[aggregatorFactories.size()]),
             granularitySpec,
@@ -175,7 +176,7 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig
             .makeDefaultTuningConfig(new File(
                     basePersistDirectory)).withVersioningPolicy(new CustomVersioningPolicy(null));
-    LOG.debug(String.format("running with DataSchema [%s] ", dataSchema));
+    LOG.debug(String.format("running with Data schema [%s] ", dataSchema));
     return new DruidRecordWriter(
             dataSchema,
             realtimeTuningConfig,

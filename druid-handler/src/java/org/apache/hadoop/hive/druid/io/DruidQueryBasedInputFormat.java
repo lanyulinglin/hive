@@ -115,7 +115,7 @@ public class DruidQueryBasedInputFormat extends InputFormat<NullWritable, DruidW
       if (dataSource == null) {
         throw new IOException("Druid data source cannot be empty");
       }
-      druidQuery = createSelectStarQuery(address, dataSource);
+      druidQuery = createSelectStarQuery(dataSource);
       druidQueryType = Query.SELECT;
     } else {
       druidQueryType = conf.get(Constants.DRUID_QUERY_TYPE);
@@ -141,7 +141,7 @@ public class DruidQueryBasedInputFormat extends InputFormat<NullWritable, DruidW
     }
   }
 
-  private static String createSelectStarQuery(String address, String dataSource) throws IOException {
+  private static String createSelectStarQuery(String dataSource) throws IOException {
     // Create Select query
     SelectQueryBuilder builder = new Druids.SelectQueryBuilder();
     builder.dataSource(dataSource);
