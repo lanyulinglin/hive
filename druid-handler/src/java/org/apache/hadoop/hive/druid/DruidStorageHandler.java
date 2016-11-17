@@ -69,11 +69,13 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
 
   public DruidStorageHandler()
   {
+    //this is the default value in druid
     final String base = SessionState.getSessionConf().get("hive.druid.metadata.base", "druid");
+    // default to mysql to avoid issue with creating of connector.
     final String dbType = SessionState.getSessionConf().get("hive.druid.metadata.db.type", "mysql");
     final String username = SessionState.getSessionConf().get("hive.druid.metadata.username", "");
     final String password = SessionState.getSessionConf().get("hive.druid.metadata.password", "");
-    final String uri = SessionState.getSessionConf().get("hive.druid.metadata.uri", "jdbc:mysql://cn105-10.l42scl.hortonworks.com/druid_db");
+    final String uri = SessionState.getSessionConf().get("hive.druid.metadata.uri", "jdbc:mysql://localhost/druid");
 
     druidMetadataStorageTablesConfig = MetadataStorageTablesConfig.fromBase(base);
 
@@ -105,13 +107,6 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
       );
     } else {
       throw new IllegalStateException(String.format("Unknown metadata storage type [%s]", dbType));
-    }
-    try {
-      connector.createSegmentTable();
-    } catch (Exception e)
-    {
-      // swallow the exception as it might be the case the user is using the connector to query druid
-       LOG.warn("Exception while trying to create druid segments table ", e);
     }
     druidSqlMetadataStorageUpdaterJobHandler = new SQLMetadataStorageUpdaterJobHandler(connector);
   }
@@ -155,6 +150,13 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
       throw new MetaException("CLUSTERED BY may not be specified for Druid");
     }
     String dataSourceName = Preconditions.checkNotNull(table.getParameters().get(Constants.DRUID_DATA_SOURCE), "WTF dataSource name is null !");
+    try {
+      connector.createSegmentTable();
+    } catch (Exception e)
+    {
+      LOG.error("Exception while trying to create druid segments table", e);
+      throw new MetaException(e.getMessage());
+    }
     Collection<String> existingDataSources = DruidStorageHandlerUtils
             .getAllDataSourceNames(connector, druidMetadataStorageTablesConfig);
     LOG.debug(String.format("pre-create data source with name [%s]", dataSourceName));
@@ -189,9 +191,14 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   @Override
   public void commitCreateTable(Table table) throws MetaException
   {
+    LOG.info(String.format("Committing table [%s] to the druid metastore", table.getDbName()));
     final Path segmentDescriptorDir = new Path(table.getSd().getLocation());
     try {
-      publishSegments(DruidStorageHandlerUtils.getPublishedSegments(segmentDescriptorDir, getConf()));
+      druidSqlMetadataStorageUpdaterJobHandler.publishSegments(
+              druidMetadataStorageTablesConfig.getSegmentsTable(),
+              DruidStorageHandlerUtils.getPublishedSegments(segmentDescriptorDir, getConf()),
+              DruidStorageHandlerUtils.JSON_MAPPER
+      );
     }
     catch (IOException e) {
       LOG.error("Exception while commit", e);
@@ -242,7 +249,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     }
   }
 
-  private Path getPath(DataSegment dataSegment)
+  private static Path getPath(DataSegment dataSegment)
   {
     return new Path(String.valueOf(dataSegment.getLoadSpec().get("path")));
   }
@@ -255,17 +262,6 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     catch (Exception ex) {
       return false;
     }
-  }
-
-  private void publishSegments(List<DataSegment> publishedSegments)
-  {
-
-    druidSqlMetadataStorageUpdaterJobHandler.publishSegments(
-        druidMetadataStorageTablesConfig.getSegmentsTable(),
-        publishedSegments,
-        DruidStorageHandlerUtils.JSON_MAPPER
-    );
-    return;
   }
 
   @Override
