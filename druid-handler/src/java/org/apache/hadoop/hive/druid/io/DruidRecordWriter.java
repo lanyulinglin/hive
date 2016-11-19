@@ -161,7 +161,8 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
       for (DataSegment pushedSegment : segmentsAndMetadata.getSegments()) {
         pushedSegmentIdentifierHashSet
                 .add(SegmentIdentifier.fromDataSegment(pushedSegment).getIdentifierAsString());
-        final Path segmentDescriptorOutputPath = makeSegmentDescriptorOutputPath(pushedSegment);
+        final Path segmentDescriptorOutputPath = DruidStorageHandlerUtils
+                .makeSegmentDescriptorOutputPath(pushedSegment, segmentsDescriptorDir);
         DruidStorageHandlerUtils
                 .writeSegmentDescriptor(fileSystem, pushedSegment, segmentDescriptorOutputPath);
 
@@ -258,13 +259,6 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
   @Override
   public void close(Reporter reporter) throws IOException {
     this.close(true);
-  }
-
-  private Path makeSegmentDescriptorOutputPath(DataSegment pushedSegment) {
-    return new Path(
-            segmentsDescriptorDir,
-            String.format("%s.json", pushedSegment.getIdentifier().replace(":", ""))
-    );
   }
 
 }
