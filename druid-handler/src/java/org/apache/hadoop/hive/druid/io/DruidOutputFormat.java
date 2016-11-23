@@ -173,11 +173,14 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
             .getIntVar(jc, HiveConf.ConfVars.HIVE_DRUID_MAX_PARTITION_SIZE);
     String basePersistDirectory = HiveConf
             .getVar(jc, HiveConf.ConfVars.HIVE_DRUID_BASE_PERSIST_DIRECTORY);
+    String version = jc.get(Constants.DRUID_SEGMENT_VERSION);
     final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig
             .makeDefaultTuningConfig(new File(
-                    basePersistDirectory)).withVersioningPolicy(new CustomVersioningPolicy(null));
+                    basePersistDirectory)).withVersioningPolicy(new CustomVersioningPolicy(version));
 
     LOG.debug(String.format("running with Data schema [%s] ", dataSchema));
+    LOG.debug(String.format("running with version [%s] ", version));
+
     return new DruidRecordWriter(
             dataSchema,
             realtimeTuningConfig,

@@ -40,4 +40,5 @@ public class Constants {
   public static final String HADOOP_CREDENTIAL_PROVIDER_PATH_CONFIG = "hadoop.security.credential.provider.path";
 
   public static final String DRUID_SEGMENT_DIRECTORY = "druid.storage.storageDirectory";
+  public static final String DRUID_SEGMENT_VERSION = "druid.segment.version";
 }
