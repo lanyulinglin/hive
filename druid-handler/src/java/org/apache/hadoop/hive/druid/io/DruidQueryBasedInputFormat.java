@@ -61,6 +61,7 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.joda.time.Duration;
 import org.joda.time.Interval;
 import org.joda.time.chrono.ISOChronology;
 import org.slf4j.Logger;
@@ -183,7 +184,7 @@ public class DruidQueryBasedInputFormat extends InputFormat<NullWritable, DruidW
     metadataBuilder.analysisTypes();
     SegmentMetadataQuery metadataQuery = metadataBuilder.build();
     final Lifecycle lifecycle = new Lifecycle();
-    HttpClient client = HttpClientInit.createClient(HttpClientConfig.builder().build(), lifecycle);
+    HttpClient client = HttpClientInit.createClient(HttpClientConfig.builder().withNumConnections(5).withReadTimeout(new Duration(10000)).build(), lifecycle);
     try {
       lifecycle.start();
     } catch (Exception e) {

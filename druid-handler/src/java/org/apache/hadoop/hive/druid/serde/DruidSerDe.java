@@ -67,6 +67,7 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.StringUtils;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -225,7 +226,7 @@ public class DruidSerDe extends AbstractSerDe {
           throws SerDeException, IOException {
 
     final Lifecycle lifecycle = new Lifecycle();
-    HttpClient client = HttpClientInit.createClient(HttpClientConfig.builder().build(), lifecycle);
+    HttpClient client = HttpClientInit.createClient(HttpClientConfig.builder().withNumConnections(5).withReadTimeout(new Duration(10000)).build(), lifecycle);
     InputStream response;
     try {
       lifecycle.start();

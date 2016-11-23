@@ -30,6 +30,7 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,7 +81,7 @@ public abstract class DruidQueryRecordReader<T extends BaseQuery<R>,R extends Co
     }
 
     final Lifecycle lifecycle = new Lifecycle();
-    HttpClient client = HttpClientInit.createClient(HttpClientConfig.builder().build(), lifecycle);
+    HttpClient client = HttpClientInit.createClient(HttpClientConfig.builder().withNumConnections(5).withReadTimeout(new Duration(10000)).build(), lifecycle);
     try {
       lifecycle.start();
     } catch (Exception e) {
