@@ -1,6 +1,5 @@
 package org.apache.hadoop.hive.druid;
 
-
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import io.druid.metadata.MetadataStorageConnectorConfig;
@@ -14,15 +13,13 @@ import org.skife.jdbi.v2.exceptions.UnableToObtainConnectionException;
 import java.sql.SQLException;
 import java.util.UUID;
 
-public class TestDerbyConnector extends DerbyConnector
-{
+public class TestDerbyConnector extends DerbyConnector {
   private final String jdbcUri;
 
   public TestDerbyConnector(
           Supplier<MetadataStorageConnectorConfig> config,
           Supplier<MetadataStorageTablesConfig> dbTables
-  )
-  {
+  ) {
     this(config, dbTables, "jdbc:derby:memory:druidTest" + dbSafeUUID());
   }
 

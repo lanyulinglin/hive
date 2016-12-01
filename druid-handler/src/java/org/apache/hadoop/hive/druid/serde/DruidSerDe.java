@@ -106,8 +106,10 @@ public class DruidSerDe extends AbstractSerDe {
       // No query. Either it is a CTAS, or we need to create a Druid
       // Segment Metadata query that retrieves all columns present in
       // the data source (dimensions and metrics).
-      if (!org.apache.commons.lang3.StringUtils.isEmpty(properties.getProperty(serdeConstants.LIST_COLUMNS))
-              && !org.apache.commons.lang3.StringUtils.isEmpty(properties.getProperty(serdeConstants.LIST_COLUMN_TYPES))) {
+      if (!org.apache.commons.lang3.StringUtils
+              .isEmpty(properties.getProperty(serdeConstants.LIST_COLUMNS))
+              && !org.apache.commons.lang3.StringUtils
+              .isEmpty(properties.getProperty(serdeConstants.LIST_COLUMN_TYPES))) {
         columnNames.addAll(Utilities.getColumnNames(properties));
         if (!columnNames.contains(DruidTable.DEFAULT_TIMESTAMP_COLUMN)) {
           throw new SerDeException("Timestamp column (' " + DruidTable.DEFAULT_TIMESTAMP_COLUMN +
