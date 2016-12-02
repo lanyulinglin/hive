@@ -118,7 +118,7 @@ public class DruidStorageHandlerTest {
     */
     Path taskDirPath = new Path(tablePath, "task_ID_attempt_ID");
     Path descriptorPath = DruidStorageHandlerUtils.makeSegmentDescriptorOutputPath(dataSegment,
-            new Path(taskDirPath, druidStorageHandler.getRandomId())
+            new Path(taskDirPath, druidStorageHandler.getHiveQueryId())
     );
     DruidStorageHandlerUtils.writeSegmentDescriptor(localFileSystem, dataSegment, descriptorPath);
     druidStorageHandler.commitCreateTable(tableMock);

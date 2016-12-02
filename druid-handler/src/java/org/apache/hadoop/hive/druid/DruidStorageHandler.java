@@ -35,6 +35,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.druid.io.DruidOutputFormat;
 import org.apache.hadoop.hive.druid.io.DruidQueryBasedInputFormat;
 import org.apache.hadoop.hive.druid.serde.DruidSerDe;
@@ -75,7 +76,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
 
   private String version = new DateTime().toString();
 
-  private String randomId = UUID.randomUUID().toString();
+  private final String hiveQueryId;
 
   public DruidStorageHandler() {
     //this is the default value in druid
@@ -119,6 +120,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
       throw new IllegalStateException(String.format("Unknown metadata storage type [%s]", dbType));
     }
     druidSqlMetadataStorageUpdaterJobHandler = new SQLMetadataStorageUpdaterJobHandler(connector);
+    hiveQueryId = Preconditions.checkNotNull(HiveConf.getVar(getConf(), HiveConf.ConfVars.HIVEQUERYID), "Hive query id is null");
   }
 
   @VisibleForTesting
@@ -129,6 +131,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     this.connector = connector;
     this.druidSqlMetadataStorageUpdaterJobHandler = druidSqlMetadataStorageUpdaterJobHandler;
     this.druidMetadataStorageTablesConfig = druidMetadataStorageTablesConfig;
+    hiveQueryId = UUID.randomUUID().toString();
   }
 
   @Override
@@ -206,9 +209,11 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     // at this stage the path to segments descriptors directory is tableDir/TaskID_attemptID/randomID/
     ImmutableList.Builder<DataSegment> dataSegmentBuilder = ImmutableList.builder();
     FileSystem fs = tableDir.getFileSystem(getConf());
-    LOG.info(String.format("getting published segments descriptors from table dir [%s] and random id [%s]", tableDir.toString(), randomId));
+    LOG.info(String.format("getting published segments descriptors from table dir [%s] and random id [%s]", tableDir.toString(),
+            hiveQueryId
+    ));
     for (FileStatus status : fs.listStatus(tableDir)) {
-      Path taskDir = new Path(status.getPath(), randomId);
+      Path taskDir = new Path(status.getPath(), hiveQueryId);
       if (!fs.isDirectory(taskDir)) {
         continue;
       }
@@ -349,10 +354,10 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties
   ) {
     jobProperties.put(Constants.DRUID_SEGMENT_VERSION, version);
-    jobProperties.put(Constants.DRUID_RANDOM_TASK_ID, randomId);
+    jobProperties.put(Constants.DRUID_RANDOM_TASK_ID, hiveQueryId);
   }
 
-  public String getRandomId() {
-    return randomId;
+  public String getHiveQueryId() {
+    return hiveQueryId;
   }
 }
