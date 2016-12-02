@@ -66,8 +66,6 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
 
   protected static final Logger LOG = LoggerFactory.getLogger(DruidStorageHandler.class);
 
-  public static final String SEGMENTS_DESCRIPTOR_DIR_NAME = "segmentsDescriptorDir";
-
   private final SQLMetadataConnector connector;
 
   private final SQLMetadataStorageUpdaterJobHandler druidSqlMetadataStorageUpdaterJobHandler;
