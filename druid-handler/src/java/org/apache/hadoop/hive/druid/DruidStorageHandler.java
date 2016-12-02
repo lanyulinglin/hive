@@ -206,11 +206,13 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     // at this stage the path to segments descriptors directory is tableDir/TaskID_attemptID/randomID/
     ImmutableList.Builder<DataSegment> dataSegmentBuilder = ImmutableList.builder();
     FileSystem fs = tableDir.getFileSystem(getConf());
+    LOG.info(String.format("getting published segments descriptors from table dir [%s] and random id [%s]", tableDir.toString(), randomId));
     for (FileStatus status : fs.listStatus(tableDir)) {
       Path taskDir = new Path(status.getPath(), randomId);
       if (!fs.isDirectory(taskDir)) {
         continue;
       }
+      LOG.debug(String.format("Scanning for segments under [%s]", taskDir.toString()));
       dataSegmentBuilder
               .addAll(DruidStorageHandlerUtils.getPublishedSegmentsFromDir(taskDir, getConf()));
     }
@@ -222,9 +224,11 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     LOG.info(String.format("Committing table [%s] to the druid metadata store", table.getDbName()));
     try {
       // at this stage the path to segments descriptors is tableDir/TaskID_attemptID/randomID/identifiers.json
+      List<DataSegment> segmentList = getPublishedSegments(new Path(table.getSd().getLocation()));
+      LOG.debug(String.format("Publishing [%s] segments to the druid meta store", segmentList.size()));
       druidSqlMetadataStorageUpdaterJobHandler.publishSegments(
               druidMetadataStorageTablesConfig.getSegmentsTable(),
-              getPublishedSegments(new Path(table.getSd().getLocation())),
+              segmentList,
               DruidStorageHandlerUtils.JSON_MAPPER
       );
     } catch (IOException e) {

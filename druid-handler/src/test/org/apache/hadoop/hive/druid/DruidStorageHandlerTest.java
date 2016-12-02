@@ -122,10 +122,13 @@ public class DruidStorageHandlerTest {
     );
     DruidStorageHandlerUtils.writeSegmentDescriptor(localFileSystem, dataSegment, descriptorPath);
     druidStorageHandler.commitCreateTable(tableMock);
-    Assert.assertArrayEquals(Lists.newArrayList(DATA_SOURCE_NAME).toArray(), Lists.newArrayList(
-            DruidStorageHandlerUtils.getAllDataSourceNames(derbyConnectorRule.getConnector(),
-                    derbyConnectorRule.metadataTablesConfigSupplier().get()
-            )).toArray());
+    Assert.assertArrayEquals("Something wrong with committing published segments",
+            Lists.newArrayList(DATA_SOURCE_NAME).toArray(), Lists.newArrayList(
+                    DruidStorageHandlerUtils
+                            .getAllDataSourceNames(derbyConnectorRule.getConnector(),
+                                    derbyConnectorRule.metadataTablesConfigSupplier().get()
+                            )).toArray()
+    );
     druidStorageHandler.commitDropTable(tableMock, false);
     Assert.assertArrayEquals(Lists.newArrayList().toArray(), Lists.newArrayList(
             DruidStorageHandlerUtils.getAllDataSourceNames(derbyConnectorRule.getConnector(),
