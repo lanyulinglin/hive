@@ -19,6 +19,7 @@ package org.apache.hadoop.hive.druid;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
@@ -31,7 +32,6 @@ import io.druid.metadata.storage.mysql.MySQLConnector;
 import io.druid.metadata.storage.postgresql.PostgreSQLConnector;
 import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.timeline.DataSegment;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -353,10 +353,6 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   }
 
   private String getUniqueId() {
-    Configuration conf = getConf();
-    if (conf != null) {
-      return Preconditions.checkNotNull(HiveConf.getVar(conf, HiveConf.ConfVars.HIVEQUERYID), "Hive query id is null");
-    }
-    return "";
+    return Preconditions.checkNotNull(Strings.emptyToNull(HiveConf.getVar(getConf(), HiveConf.ConfVars.HIVEQUERYID)), "Hive query id is null");
   }
 }

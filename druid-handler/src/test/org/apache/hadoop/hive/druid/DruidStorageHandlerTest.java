@@ -12,6 +12,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -28,6 +29,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.UUID;
 
 public class DruidStorageHandlerTest {
 
@@ -110,6 +112,8 @@ public class DruidStorageHandlerTest {
     );
     druidStorageHandler.preCreateTable(tableMock);
     Configuration config = new Configuration();
+    String randomId = UUID.randomUUID().toString();
+    HiveConf.setVar(config, HiveConf.ConfVars.HIVEQUERYID, randomId);
     druidStorageHandler.setConf(config);
     LocalFileSystem localFileSystem = FileSystem.getLocal(config);
     /*
@@ -118,7 +122,7 @@ public class DruidStorageHandlerTest {
     */
     Path taskDirPath = new Path(tablePath, "task_ID_attempt_ID");
     Path descriptorPath = DruidStorageHandlerUtils
-            .makeSegmentDescriptorOutputPath(dataSegment, taskDirPath);
+            .makeSegmentDescriptorOutputPath(dataSegment, new Path(taskDirPath, randomId));
     DruidStorageHandlerUtils.writeSegmentDescriptor(localFileSystem, dataSegment, descriptorPath);
     druidStorageHandler.commitCreateTable(tableMock);
     Assert.assertArrayEquals("Something wrong with committing published segments",
