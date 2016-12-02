@@ -117,9 +117,8 @@ public class DruidStorageHandlerTest {
     UUID.randomUUID() will fake the taskId_attemptID and and randomId
     */
     Path taskDirPath = new Path(tablePath, "task_ID_attempt_ID");
-    Path descriptorPath = DruidStorageHandlerUtils.makeSegmentDescriptorOutputPath(dataSegment,
-            new Path(taskDirPath, druidStorageHandler.getHiveQueryId())
-    );
+    Path descriptorPath = DruidStorageHandlerUtils
+            .makeSegmentDescriptorOutputPath(dataSegment, taskDirPath);
     DruidStorageHandlerUtils.writeSegmentDescriptor(localFileSystem, dataSegment, descriptorPath);
     druidStorageHandler.commitCreateTable(tableMock);
     Assert.assertArrayEquals("Something wrong with committing published segments",
