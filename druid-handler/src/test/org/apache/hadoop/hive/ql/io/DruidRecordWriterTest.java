@@ -38,7 +38,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
-import org.apache.hadoop.hive.druid.DruidStorageHandler;
 import org.apache.hadoop.hive.druid.DruidStorageHandlerUtils;
 import org.apache.hadoop.hive.druid.io.DruidRecordWriter;
 import org.apache.hadoop.hive.druid.serde.DruidWritable;
@@ -128,9 +127,7 @@ public class DruidRecordWriterTest {
             }, objectMapper);
 
     druidRecordWriter = new DruidRecordWriter(dataSchema, tuningConfig, dataSegmentPusher, 20,
-            new Path(segmentDescriptorOutputDir.getAbsolutePath(),
-                    DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME
-            ), localFileSystem
+            new Path(segmentDescriptorOutputDir.getAbsolutePath()), localFileSystem
     );
 
     List<DruidWritable> druidWritables = Lists.transform(expectedRows,
@@ -154,7 +151,7 @@ public class DruidRecordWriterTest {
     }
     druidRecordWriter.close(false);
     List<DataSegment> dataSegmentList = DruidStorageHandlerUtils
-            .getPublishedSegments(new Path(segmentDescriptorOutputDir.getParent()), config);
+            .getPublishedSegmentsFromDir(new Path(segmentDescriptorOutputDir.getAbsolutePath()), config);
     Assert.assertEquals(1, dataSegmentList.size());
     File tmpUnzippedSegmentDir = temporaryFolder.newFolder();
     new LocalDataSegmentPuller().getSegmentFiles(dataSegmentList.get(0), tmpUnzippedSegmentDir);

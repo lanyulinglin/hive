@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import io.druid.indexer.SQLMetadataStorageUpdaterJobHandler;
 import io.druid.metadata.MetadataStorageConnectorConfig;
 import io.druid.metadata.MetadataStorageTablesConfig;
@@ -30,6 +31,7 @@ import io.druid.metadata.storage.mysql.MySQLConnector;
 import io.druid.metadata.storage.postgresql.PostgreSQLConnector;
 import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.timeline.DataSegment;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
@@ -40,16 +42,20 @@ import org.apache.hadoop.hive.metastore.HiveMetaHook;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.DefaultStorageHandler;
+import org.apache.hadoop.hive.ql.plan.TableDesc;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.OutputFormat;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * DruidStorageHandler provides a HiveStorageHandler implementation for Druid.
@@ -66,6 +72,10 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   private final SQLMetadataStorageUpdaterJobHandler druidSqlMetadataStorageUpdaterJobHandler;
 
   private final MetadataStorageTablesConfig druidMetadataStorageTablesConfig;
+
+  private String version = new DateTime().toString();
+
+  private String randomId = UUID.randomUUID().toString();
 
   public DruidStorageHandler() {
     //this is the default value in druid
@@ -177,8 +187,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   public void rollbackCreateTable(Table table) throws MetaException {
     final Path segmentDescriptorDir = new Path(table.getSd().getLocation());
     try {
-      List<DataSegment> dataSegmentList = DruidStorageHandlerUtils
-              .getPublishedSegments(segmentDescriptorDir, getConf());
+      List<DataSegment> dataSegmentList = getPublishedSegments(segmentDescriptorDir);
       for (DataSegment dataSegment :
               dataSegmentList) {
         try {
@@ -193,14 +202,29 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     }
   }
 
+  private List<DataSegment> getPublishedSegments(Path tableDir) throws IOException {
+    // at this stage the path to segments descriptors directory is tableDir/TaskID_attemptID/randomID/
+    ImmutableList.Builder<DataSegment> dataSegmentBuilder = ImmutableList.builder();
+    FileSystem fs = tableDir.getFileSystem(getConf());
+    for (FileStatus status : fs.listStatus(tableDir)) {
+      Path taskDir = new Path(status.getPath(), randomId);
+      if (!fs.isDirectory(taskDir)) {
+        continue;
+      }
+      dataSegmentBuilder
+              .addAll(DruidStorageHandlerUtils.getPublishedSegmentsFromDir(taskDir, getConf()));
+    }
+    return dataSegmentBuilder.build();
+  }
+
   @Override
   public void commitCreateTable(Table table) throws MetaException {
-    LOG.info(String.format("Committing table [%s] to the druid metastore", table.getDbName()));
-    final Path tableDir = new Path(table.getSd().getLocation());
+    LOG.info(String.format("Committing table [%s] to the druid metadata store", table.getDbName()));
     try {
+      // at this stage the path to segments descriptors is tableDir/TaskID_attemptID/randomID/identifiers.json
       druidSqlMetadataStorageUpdaterJobHandler.publishSegments(
               druidMetadataStorageTablesConfig.getSegmentsTable(),
-              DruidStorageHandlerUtils.getPublishedSegments(tableDir, getConf()),
+              getPublishedSegments(new Path(table.getSd().getLocation())),
               DruidStorageHandlerUtils.JSON_MAPPER
       );
     } catch (IOException e) {
@@ -317,4 +341,14 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     return Constants.DRUID_HIVE_STORAGE_HANDLER_ID;
   }
 
+  @Override
+  public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties
+  ) {
+    jobProperties.put(Constants.DRUID_SEGMENT_VERSION, version);
+    jobProperties.put(Constants.DRUID_RANDOM_TASK_ID, randomId);
+  }
+
+  public String getRandomId() {
+    return randomId;
+  }
 }

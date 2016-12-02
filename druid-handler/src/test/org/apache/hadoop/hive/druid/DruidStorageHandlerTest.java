@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.UUID;
 
 public class DruidStorageHandlerTest {
 
@@ -114,12 +113,12 @@ public class DruidStorageHandlerTest {
     druidStorageHandler.setConf(config);
     LocalFileSystem localFileSystem = FileSystem.getLocal(config);
     /*
-    final descriptor path is in the form tablePath/taskId_Attempt_ID/segmentDescriptorDir/segmentIdentifier.json
-    UUID.randomUUID() will fake the taskId_attemptID
+    final descriptor path is in the form tablePath/taskId_Attempt_ID/randomID/segmentIdentifier.json
+    UUID.randomUUID() will fake the taskId_attemptID and and randomId
     */
-    Path taskDirPath = new Path(tablePath, UUID.randomUUID().toString());
+    Path taskDirPath = new Path(tablePath, "task_ID_attempt_ID");
     Path descriptorPath = DruidStorageHandlerUtils.makeSegmentDescriptorOutputPath(dataSegment,
-            new Path(taskDirPath, DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME)
+            new Path(taskDirPath, druidStorageHandler.getRandomId())
     );
     DruidStorageHandlerUtils.writeSegmentDescriptor(localFileSystem, dataSegment, descriptorPath);
     druidStorageHandler.commitCreateTable(tableMock);

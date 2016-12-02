@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -66,8 +66,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
-import static org.apache.hadoop.hive.druid.DruidStorageHandler.SEGMENTS_DESCRIPTOR_DIR_NAME;
 
 public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritable> {
 
@@ -176,26 +174,23 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
             .getIntVar(jc, HiveConf.ConfVars.HIVE_DRUID_MAX_PARTITION_SIZE);
     String basePersistDirectory = HiveConf
             .getVar(jc, HiveConf.ConfVars.HIVE_DRUID_BASE_PERSIST_DIRECTORY);
-    String version = jc.get(Constants.DRUID_SEGMENT_VERSION);
+    String version = Preconditions.checkNotNull(jc.get(Constants.DRUID_SEGMENT_VERSION), "Version is null");
     final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig
             .makeDefaultTuningConfig(new File(
                     basePersistDirectory))
             .withVersioningPolicy(new CustomVersioningPolicy(version));
+    String randomId = Preconditions
+            .checkNotNull(jc.get(Constants.DRUID_RANDOM_TASK_ID), "Random task id is null !!");
 
     LOG.debug(String.format("running with Data schema [%s] ", dataSchema));
-    LOG.debug(String.format("running with version [%s] ", version));
-
+    LOG.debug(String.format("running with version [%s], random id [%s]", version, randomId));
     return new DruidRecordWriter(
             dataSchema,
             realtimeTuningConfig,
             hdfsDataSegmentPusher, maxPartitionSize,
-            makeSegmentDescriptorOutputDir(finalOutPath),
+            new Path(finalOutPath, randomId),
             finalOutPath.getFileSystem(jc)
     );
-  }
-
-  private Path makeSegmentDescriptorOutputDir(Path finalOutPath) {
-    return new Path(finalOutPath, SEGMENTS_DESCRIPTOR_DIR_NAME);
   }
 
   @Override

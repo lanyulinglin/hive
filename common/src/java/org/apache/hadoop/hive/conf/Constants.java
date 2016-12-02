@@ -41,4 +41,6 @@ public class Constants {
 
   public static final String DRUID_SEGMENT_DIRECTORY = "druid.storage.storageDirectory";
   public static final String DRUID_SEGMENT_VERSION = "druid.segment.version";
+
+  public static final String DRUID_RANDOM_TASK_ID = "druid.random.taskId";
 }
