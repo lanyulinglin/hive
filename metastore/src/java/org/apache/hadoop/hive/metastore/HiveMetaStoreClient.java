@@ -715,6 +715,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
     HiveMetaHook hook = getHook(tbl);
     LOG.info("committing insert");
     if (hook != null) {
+      LOG.info(String.format("HOOK [%s]", hook.getClass()));
       hook.commitInsert(loadPath, tbl, replace);
     }
   }
