@@ -21,6 +21,7 @@ package org.apache.hadoop.hive.metastore;
 import com.google.common.collect.Lists;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.ObjectPair;
 import org.apache.hadoop.hive.common.ValidTxnList;
 import org.apache.hadoop.hive.common.auth.HiveAuthUtils;
@@ -706,6 +707,14 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
       if (!success && (hook != null)) {
         hook.rollbackCreateTable(tbl);
       }
+    }
+  }
+
+  @Override
+  public void commitInsert(Path loadPath, Table tbl, boolean replace) throws MetaException {
+    HiveMetaHook hook = getHook(tbl);
+    if (hook != null) {
+      hook.commitInsert(loadPath, tbl, replace);
     }
   }
 
@@ -2163,7 +2172,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
   public void addDynamicPartitions(long txnId, String dbName, String tableName,
                                    List<String> partNames) throws TException {
     client.add_dynamic_partitions(new AddDynamicPartitions(txnId, dbName, tableName, partNames));
-  }  
+  }
   @Override
   public void addDynamicPartitions(long txnId, String dbName, String tableName,
                                    List<String> partNames, DataOperationType operationType) throws TException {

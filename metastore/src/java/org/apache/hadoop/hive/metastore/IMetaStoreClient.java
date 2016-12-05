@@ -19,6 +19,7 @@
 package org.apache.hadoop.hive.metastore;
 
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.ObjectPair;
 import org.apache.hadoop.hive.common.ValidTxnList;
 import org.apache.hadoop.hive.common.classification.InterfaceAudience;
@@ -1500,6 +1501,8 @@ public interface IMetaStoreClient {
   void addDynamicPartitions(long txnId, String dbName, String tableName, List<String> partNames,
                             DataOperationType operationType)
     throws TException;
+
+  void commitInsert(Path loadPath, Table table, boolean replace) throws MetaException;
 
   /**
    * A filter provided by the client that determines if a given notification event should be

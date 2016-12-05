@@ -221,7 +221,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
 
   @Override
   public void commitCreateTable(Table table) throws MetaException {
-    LOG.info(String.format("Committing table [%s] to the druid metadata store", table.getDbName()));
+    LOG.info(String.format("Committing table [%s] to the druid metadata store", table.getTableName()));
     try {
       // at this stage the path to segments descriptors is tableDir/TaskID_attemptID/randomID/identifiers.json
       List<DataSegment> segmentList = getPublishedSegments(new Path(table.getSd().getLocation()));
@@ -354,5 +354,30 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
 
   private String getUniqueId() {
     return Preconditions.checkNotNull(Strings.emptyToNull(HiveConf.getVar(getConf(), HiveConf.ConfVars.HIVEQUERYID)), "Hive query id is null");
+  }
+
+  @Override
+  public void commitInsert(Path loadPath, Table table, boolean overwrite) throws MetaException {
+    LOG.info(String.format("Committing insert into table [%s] to the druid metadata store", table.getTableName()));
+    if (overwrite) {
+      try {
+        Path dataDir = new Path(loadPath, getUniqueId());
+        LOG.info(String.format("getting published segments descriptors from table dir [%s] and random id [%s]", dataDir.toString(),
+                getUniqueId()
+        ));
+        List<DataSegment> segmentList = DruidStorageHandlerUtils.getPublishedSegmentsFromDir(dataDir, getConf());
+        LOG.debug(String.format("Publishing [%s] segments to the druid meta store", segmentList.size()));
+        druidSqlMetadataStorageUpdaterJobHandler.publishSegments(
+                druidMetadataStorageTablesConfig.getSegmentsTable(),
+                segmentList,
+                DruidStorageHandlerUtils.JSON_MAPPER
+        );
+      } catch (IOException e) {
+        LOG.error("Exception while commit", e);
+        Throwables.propagate(e);
+      }
+    } else {
+      throw new MetaException("Only insert overwrite is supported");
+    }
   }
 }

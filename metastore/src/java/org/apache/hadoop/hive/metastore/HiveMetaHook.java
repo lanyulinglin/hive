@@ -18,8 +18,8 @@
 
 package org.apache.hadoop.hive.metastore;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.api.MetaException;
-import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 
 /**
@@ -89,4 +89,11 @@ public interface HiveMetaHook {
    */
   public void commitDropTable(Table table, boolean deleteData)
     throws MetaException;
+
+  /**
+   * @param loadPath Path containing the record writer output files before the move task is executed
+   * @param table table definition
+   * @param overwrite true if it is an insert overwrite statement.
+   */
+  public void commitInsert(Path loadPath, Table table, boolean overwrite) throws MetaException;
 }
