@@ -314,6 +314,12 @@ public class AccumuloStorageHandler extends DefaultStorageHandler implements Hiv
   }
 
   @Override
+  public void commitInsert(Path loadPath, Table table, boolean overwrite
+  ) throws MetaException {
+    //do nothing
+  }
+
+  @Override
   public void preDropTable(Table table) throws MetaException {
     // do nothing
   }

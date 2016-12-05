@@ -713,6 +713,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
   @Override
   public void commitInsert(Path loadPath, Table tbl, boolean replace) throws MetaException {
     HiveMetaHook hook = getHook(tbl);
+    LOG.info("committing insert");
     if (hook != null) {
       hook.commitInsert(loadPath, tbl, replace);
     }
