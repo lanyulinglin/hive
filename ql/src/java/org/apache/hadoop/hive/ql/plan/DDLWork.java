@@ -17,13 +17,13 @@
  */
 package org.apache.hadoop.hive.ql.plan;
 
-import java.io.Serializable;
-import java.util.HashSet;
-
 import org.apache.hadoop.hive.ql.hooks.ReadEntity;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
 import org.apache.hadoop.hive.ql.parse.AlterTablePartMergeFilesDesc;
 import org.apache.hadoop.hive.ql.plan.Explain.Level;
+
+import java.io.Serializable;
+import java.util.HashSet;
 
 /**
  * DDLWork.
@@ -72,6 +72,7 @@ public class DDLWork implements Serializable {
   private AlterTableAlterPartDesc alterTableAlterPartDesc;
   private TruncateTableDesc truncateTblDesc;
   private AlterTableExchangePartition alterTableExchangePartition;
+  private PostCommitHook postCommitHook;
 
   private RoleDDLDesc roleDDLDesc;
   private GrantDesc grantDesc;
@@ -522,6 +523,13 @@ public class DDLWork implements Serializable {
       CacheMetadataDesc cacheMetadataDesc) {
     this(inputs, outputs);
     this.cacheMetadataDesc = cacheMetadataDesc;
+  }
+
+  public DDLWork(HashSet<ReadEntity> inputs, HashSet<WriteEntity> outputs,
+          PostCommitHook postCommitHook) {
+
+    this(inputs, outputs);
+    this.postCommitHook = postCommitHook;
   }
 
   /**
@@ -1184,5 +1192,14 @@ public class DDLWork implements Serializable {
 
   public void setShowConfDesc(ShowConfDesc showConfDesc) {
     this.showConfDesc = showConfDesc;
+  }
+
+  @Explain(displayName = "post commit hook operator", explainLevels = { Level.USER, Level.DEFAULT, Level.EXTENDED })
+  public PostCommitHook getPostCommitHook() {
+    return postCommitHook;
+  }
+
+  public void setPostCommitHook(PostCommitHook postCommitHook) {
+    this.postCommitHook = postCommitHook;
   }
 }

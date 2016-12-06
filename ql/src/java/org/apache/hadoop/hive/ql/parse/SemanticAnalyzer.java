@@ -18,31 +18,7 @@
 
 package org.apache.hadoop.hive.ql.parse;
 
-import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVESTATSDBCLASS;
-
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.Serializable;
-import java.security.AccessControlException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Queue;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.UUID;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
-
+import com.google.common.collect.Sets;
 import org.antlr.runtime.ClassicToken;
 import org.antlr.runtime.CommonToken;
 import org.antlr.runtime.Token;
@@ -65,7 +41,6 @@ import org.apache.hadoop.hive.conf.HiveConf.StrictChecks;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.Warehouse;
-import org.apache.hadoop.hive.metastore.api.AddDynamicPartitions;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -188,6 +163,7 @@ import org.apache.hadoop.hive.ql.plan.MapJoinDesc;
 import org.apache.hadoop.hive.ql.plan.OperatorDesc;
 import org.apache.hadoop.hive.ql.plan.PTFDesc;
 import org.apache.hadoop.hive.ql.plan.PlanUtils;
+import org.apache.hadoop.hive.ql.plan.PostCommitHook;
 import org.apache.hadoop.hive.ql.plan.ReduceSinkDesc;
 import org.apache.hadoop.hive.ql.plan.ScriptDesc;
 import org.apache.hadoop.hive.ql.plan.SelectDesc;
@@ -235,7 +211,30 @@ import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.OutputFormat;
 import org.apache.hadoop.security.UserGroupInformation;
 
-import com.google.common.collect.Sets;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.Serializable;
+import java.security.AccessControlException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Queue;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVESTATSDBCLASS;
 
 /**
  * Implementation of the semantic analyzer. It generates the query plan.
@@ -1820,7 +1819,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   public void getMaterializationMetadata(QB qb) throws SemanticException {
     try {
       gatherCTEReferences(qb, rootClause);
-      int threshold = HiveConf.getIntVar(conf, HiveConf.ConfVars.HIVE_CTE_MATERIALIZE_THRESHOLD);      
+      int threshold = HiveConf.getIntVar(conf, HiveConf.ConfVars.HIVE_CTE_MATERIALIZE_THRESHOLD);
       for (CTEClause cte : Sets.newHashSet(aliasToCTEs.values())) {
         if (threshold >= 0 && cte.reference >= threshold) {
           cte.materialize = true;
@@ -2525,7 +2524,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     case HiveParser.TOK_CHARSETLITERAL:
     case HiveParser.KW_TRUE:
     case HiveParser.KW_FALSE:
-      break;  
+      break;
 
     case HiveParser.TOK_FUNCTION:
       // check all the arguments
@@ -6528,6 +6527,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
   }
 
+  private void addPrePostCommitTasks(Table dest_tab, Path queryTmpdir, QBParseInfo parseInfo) {
+    PostCommitHook postCommitHook = new PostCommitHook(dest_tab, queryTmpdir, parseInfo);
+    this.rootTasks.add(TaskFactory.get(new DDLWork(getInputs(), getOutputs(), postCommitHook), conf));
+  }
+
   @SuppressWarnings("unchecked")
   private void setStatsForNonNativeTable(Table tab) throws SemanticException {
     String tableName = DDLSemanticAnalyzer.getDotName(new String[] { tab.getDbName(),
@@ -6672,6 +6676,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         // This is a non-native table.
         // We need to set stats as inaccurate.
         setStatsForNonNativeTable(dest_tab);
+        addPrePostCommitTasks(dest_tab, queryTmpdir, qb.getParseInfo());
       }
 
       WriteEntity output = null;
@@ -6936,7 +6941,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     input = genConversionSelectOperator(dest, qb, input, table_desc, dpCtx);
- 
+
     inputRR = opParseCtx.get(input).getRowResolver();
 
     ArrayList<ColumnInfo> vecCol = new ArrayList<ColumnInfo>();
@@ -10628,7 +10633,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
           colNames.add(col.getName());
           colTypes.add(col.getType());
         }
-        
+
         basicInfos.put(new HivePrivilegeObject(table.getDbName(), table.getTableName(), colNames),
             new MaskAndFilterInfo(colTypes, additionalTabInfo.toString(), alias, astNode, table.isView()));
       }
@@ -10653,7 +10658,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       }
     }
   }
-  
+
   // We walk through the AST.
   // We replace all the TOK_TABREF by adding additional masking and filter if
   // the table needs to be masked or filtered.
@@ -10775,7 +10780,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // masking and filtering should be created here
     // the basic idea is similar to unparseTranslator.
     tableMask = new TableMask(this, conf, ctx);
-    
+
     // 4. continue analyzing from the child ASTNode.
     Phase1Ctx ctx_1 = initPhase1Ctx();
     preProcessForInsert(child, qb);
