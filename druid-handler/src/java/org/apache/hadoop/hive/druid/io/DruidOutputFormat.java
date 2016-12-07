@@ -188,8 +188,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
             dataSchema,
             realtimeTuningConfig,
             hdfsDataSegmentPusher, maxPartitionSize,
-            new Path(finalOutPath, randomId),
-            finalOutPath.getFileSystem(jc)
+            new Path(segmentDirectory, randomId),
+            new Path(segmentDirectory).getFileSystem(jc)
     );
   }
 

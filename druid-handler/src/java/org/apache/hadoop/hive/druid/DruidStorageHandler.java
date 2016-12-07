@@ -66,11 +66,15 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
 
   protected static final Logger LOG = LoggerFactory.getLogger(DruidStorageHandler.class);
 
+  private static final String DEFAULT_STORAGE_PATH = HiveConf
+          .getVar(SessionState.getSessionConf(), HiveConf.ConfVars.DRUID_SEGMENT_DIRECTORY);
+
   private final SQLMetadataConnector connector;
 
   private final SQLMetadataStorageUpdaterJobHandler druidSqlMetadataStorageUpdaterJobHandler;
 
   private final MetadataStorageTablesConfig druidMetadataStorageTablesConfig;
+  private String uniqueId = null;
 
   private String version = new DateTime().toString();
 
@@ -223,8 +227,8 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   public void commitCreateTable(Table table) throws MetaException {
     LOG.info(String.format("Committing table [%s] to the druid metadata store", table.getTableName()));
     try {
-      // at this stage the path to segments descriptors is tableDir/TaskID_attemptID/randomID/identifiers.json
-      List<DataSegment> segmentList = getPublishedSegments(new Path(table.getSd().getLocation()));
+      // at this stage the path to segments descriptors is storagePath/randomID/identifiers.json
+      List<DataSegment> segmentList = DruidStorageHandlerUtils.getPublishedSegmentsFromDir(new Path(getStoragePath(table), getUniqueId()), getConf());
       LOG.debug(String.format("Publishing [%s] segments to the druid meta store", segmentList.size()));
       druidSqlMetadataStorageUpdaterJobHandler.publishSegments(
               druidMetadataStorageTablesConfig.getSegmentsTable(),
@@ -353,7 +357,13 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
   }
 
   private String getUniqueId() {
-    return Preconditions.checkNotNull(Strings.emptyToNull(HiveConf.getVar(getConf(), HiveConf.ConfVars.HIVEQUERYID)), "Hive query id is null");
+    if (uniqueId == null) {
+      uniqueId = Preconditions.checkNotNull(
+              Strings.emptyToNull(HiveConf.getVar(getConf(), HiveConf.ConfVars.HIVEQUERYID)),
+              "Hive query id is null"
+      );
+    }
+    return uniqueId;
   }
 
   @Override
@@ -361,7 +371,7 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     LOG.info(String.format("Committing insert into table [%s] to the druid metadata store", table.getTableName()));
     if (overwrite) {
       try {
-        Path dataDir = new Path(loadPath, getUniqueId());
+        Path dataDir = new Path(getStoragePath(table), getUniqueId());
         LOG.info(String.format("getting published segments descriptors from table dir [%s] and random id [%s]", dataDir.toString(),
                 getUniqueId()
         ));
@@ -379,5 +389,12 @@ public class DruidStorageHandler extends DefaultStorageHandler implements HiveMe
     } else {
       throw new MetaException("Only insert overwrite is supported");
     }
+  }
+
+  private static String getStoragePath(Table table)
+  {
+    return table.getParameters().get(Constants.DRUID_SEGMENT_DIRECTORY) != null
+            ? table.getParameters().get(Constants.DRUID_SEGMENT_DIRECTORY)
+            : DEFAULT_STORAGE_PATH;
   }
 }

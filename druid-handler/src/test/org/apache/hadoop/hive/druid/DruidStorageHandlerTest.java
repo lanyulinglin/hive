@@ -52,7 +52,10 @@ public class DruidStorageHandlerTest {
   public void before() throws Throwable {
     tablePath = temporaryFolder.newFolder().getAbsolutePath();
     segmentsTable = derbyConnectorRule.metadataTablesConfigSupplier().get().getSegmentsTable();
-    Map<String, String> mockMap = ImmutableMap.of(Constants.DRUID_DATA_SOURCE, DATA_SOURCE_NAME);
+    Map<String, String> mockMap = ImmutableMap
+            .of(Constants.DRUID_DATA_SOURCE, DATA_SOURCE_NAME, Constants.DRUID_SEGMENT_DIRECTORY,
+                    tablePath
+            );
     Mockito.when(tableMock.getParameters()).thenReturn(mockMap);
     Mockito.when(tableMock.getPartitionKeysSize()).thenReturn(0);
     StorageDescriptor storageDes = Mockito.mock(StorageDescriptor.class);
@@ -120,7 +123,7 @@ public class DruidStorageHandlerTest {
     final descriptor path is in the form tablePath/taskId_Attempt_ID/randomID/segmentIdentifier.json
     UUID.randomUUID() will fake the taskId_attemptID and and randomId
     */
-    Path taskDirPath = new Path(tablePath, "task_ID_attempt_ID");
+    Path taskDirPath = new Path(tablePath);
     Path descriptorPath = DruidStorageHandlerUtils
             .makeSegmentDescriptorOutputPath(dataSegment, new Path(taskDirPath, randomId));
     DruidStorageHandlerUtils.writeSegmentDescriptor(localFileSystem, dataSegment, descriptorPath);
