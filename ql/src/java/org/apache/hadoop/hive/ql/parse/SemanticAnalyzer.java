@@ -6529,9 +6529,12 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
   private void addPrePostCommitTasks(Table dest_tab, Path queryTmpdir, QBParseInfo parseInfo) {
     PostCommitHook postCommitHook = new PostCommitHook(dest_tab, queryTmpdir, parseInfo);
-    TaskFactory.getAndMakeChild(new DDLWork(getInputs(), getOutputs(), postCommitHook), conf,
-            (Task<? extends Serializable>[]) this.rootTasks.toArray()
+    Task<? extends Serializable>[] tasks = new Task[this.rootTasks.size()];
+    tasks = this.rootTasks.toArray(tasks);
+    TaskFactory.getAndMakeChild(new DDLWork(getInputs(), getOutputs(), postCommitHook), conf, tasks
     );
+    this.rootTasks.add(TaskFactory
+            .getAndMakeChild(new DDLWork(getInputs(), getOutputs(), postCommitHook), conf, tasks));
   }
 
   @SuppressWarnings("unchecked")
