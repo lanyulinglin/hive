@@ -1194,7 +1194,7 @@ public class DDLWork implements Serializable {
     this.showConfDesc = showConfDesc;
   }
 
-  @Explain(displayName = "post commit hook operator", explainLevels = { Level.USER, Level.DEFAULT, Level.EXTENDED })
+  @Explain(displayName = "Post commit hook operator", explainLevels = { Level.USER, Level.DEFAULT, Level.EXTENDED })
   public PostCommitHook getPostCommitHook() {
     return postCommitHook;
   }

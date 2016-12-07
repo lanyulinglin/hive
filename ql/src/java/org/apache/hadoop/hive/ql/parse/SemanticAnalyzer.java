@@ -6529,7 +6529,9 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
   private void addPrePostCommitTasks(Table dest_tab, Path queryTmpdir, QBParseInfo parseInfo) {
     PostCommitHook postCommitHook = new PostCommitHook(dest_tab, queryTmpdir, parseInfo);
-    this.rootTasks.add(TaskFactory.get(new DDLWork(getInputs(), getOutputs(), postCommitHook), conf));
+    TaskFactory.getAndMakeChild(new DDLWork(getInputs(), getOutputs(), postCommitHook), conf,
+            (Task<? extends Serializable>[]) this.rootTasks.toArray()
+    );
   }
 
   @SuppressWarnings("unchecked")
@@ -6636,11 +6638,9 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       }
 
       boolean isNonNativeTable = dest_tab.isNonNative();
-      if (isNonNativeTable) {
-        queryTmpdir = dest_path;
-      } else {
-        queryTmpdir = ctx.getTempDirForPath(dest_path);
-      }
+
+      queryTmpdir = ctx.getTempDirForPath(dest_path);
+
       if (dpCtx != null) {
         // set the root of the temporary path where dynamic partition columns will populate
         dpCtx.setRootPath(queryTmpdir);

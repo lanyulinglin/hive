@@ -22,7 +22,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.QBParseInfo;
 
-public class PostCommitHook extends DDLDesc {
+@Explain(displayName = "Post commit hook operator", explainLevels = { Explain.Level.USER, Explain.Level.DEFAULT, Explain.Level.EXTENDED })
+public class PostCommitHook extends DDLDesc{
   private final QBParseInfo parseInfo;
   private final Path path;
   private final Table table;
