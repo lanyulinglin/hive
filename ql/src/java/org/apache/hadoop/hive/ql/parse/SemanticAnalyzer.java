@@ -6533,8 +6533,6 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     tasks = this.rootTasks.toArray(tasks);
     TaskFactory.getAndMakeChild(new DDLWork(getInputs(), getOutputs(), postCommitHook), conf, tasks
     );
-    this.rootTasks.add(TaskFactory
-            .getAndMakeChild(new DDLWork(getInputs(), getOutputs(), postCommitHook), conf, tasks));
   }
 
   @SuppressWarnings("unchecked")
