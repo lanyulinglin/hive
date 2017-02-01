@@ -318,6 +318,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   protected boolean partialscan;
 
   protected volatile boolean disableJoinMerge = false;
+  protected final boolean defaultJoinMerge;
 
   /*
    * Capture the CTE definitions in a Query.
@@ -394,6 +395,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     mergeIsDirect = true;
     noscan = partialscan = false;
     tabNameToTabObject = new HashMap<>();
+    defaultJoinMerge = false == HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_MERGE_NWAY_JOINS);
+    disableJoinMerge = defaultJoinMerge;
   }
 
   @Override
@@ -423,7 +426,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     smbMapJoinContext.clear();
     opParseCtx.clear();
     groupOpToInputTables.clear();
-    disableJoinMerge = false;
+    disableJoinMerge = defaultJoinMerge;
     aliasToCTEs.clear();
     topToTable.clear();
     opToPartPruner.clear();
@@ -7193,7 +7196,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   private void createInsertDesc(Table table, boolean overwrite) {
     Task<? extends Serializable>[] tasks = new Task[this.rootTasks.size()];
     tasks = this.rootTasks.toArray(tasks);
-    PreInsertTableDesc preInsertTableDesc = new PreInsertTableDesc(table.getTTable(), overwrite);
+    PreInsertTableDesc preInsertTableDesc = new PreInsertTableDesc(table, overwrite);
     InsertTableDesc insertTableDesc = new InsertTableDesc(table.getTTable(), overwrite);
     this.rootTasks
             .add(TaskFactory.get(new DDLWork(getInputs(), getOutputs(), preInsertTableDesc), conf));
