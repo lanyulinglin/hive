@@ -448,7 +448,7 @@ public final class DruidStorageHandlerUtils {
     long push() throws IOException;
   }
 
-  // Thanks, HBase
+  // Thanks, HBase Storage handler
   public static void addDependencyJars(Configuration conf, Class<?>... classes) throws IOException {
     FileSystem localFs = FileSystem.getLocal(conf);
     Set<String> jars = new HashSet<String>();
