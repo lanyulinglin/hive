@@ -57,9 +57,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritable>,
@@ -93,9 +95,11 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
     this.tuningConfig = Preconditions
             .checkNotNull(realtimeTuningConfig, "realtimeTuningConfig is null");
     this.dataSchema = Preconditions.checkNotNull(dataSchema, "data schema is null");
+    File basePersistDir = new File(tuningConfig.getBasePersistDirectory(), UUID.randomUUID().toString());
+    basePersistDir.deleteOnExit();
     appenderator = Appenderators
             .createOffline(this.dataSchema,
-                    tuningConfig,
+                    tuningConfig.withBasePersistDirectory(basePersistDir),
                     new FireDepartmentMetrics(), dataSegmentPusher,
                     DruidStorageHandlerUtils.JSON_MAPPER,
                     DruidStorageHandlerUtils.INDEX_IO,
