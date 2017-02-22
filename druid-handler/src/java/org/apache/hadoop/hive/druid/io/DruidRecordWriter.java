@@ -42,6 +42,7 @@ import io.druid.segment.realtime.plumber.Committers;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
 import org.apache.calcite.adapter.druid.DruidTable;
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.Constants;
@@ -265,7 +266,11 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
     } catch (InterruptedException e) {
       Throwables.propagate(e);
     } finally {
-      tuningConfig.getBasePersistDirectory().delete();
+      try {
+        FileUtils.deleteDirectory(tuningConfig.getBasePersistDirectory());
+      } catch (Exception e){
+        LOG.error("error cleaning of base persist directory", e);
+      }
       appenderator.close();
     }
   }
