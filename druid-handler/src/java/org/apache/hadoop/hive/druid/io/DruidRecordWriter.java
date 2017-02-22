@@ -92,18 +92,19 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
           final Path segmentsDescriptorsDir,
           final FileSystem fileSystem
   ) {
+    File basePersistDir = new File(realtimeTuningConfig.getBasePersistDirectory(),
+            UUID.randomUUID().toString()
+    );
     this.tuningConfig = Preconditions
-            .checkNotNull(realtimeTuningConfig, "realtimeTuningConfig is null");
+            .checkNotNull(realtimeTuningConfig.withBasePersistDirectory(basePersistDir),
+                    "realtimeTuningConfig is null"
+            );
     this.dataSchema = Preconditions.checkNotNull(dataSchema, "data schema is null");
-    File basePersistDir = new File(tuningConfig.getBasePersistDirectory(), UUID.randomUUID().toString());
-    basePersistDir.deleteOnExit();
+
     appenderator = Appenderators
-            .createOffline(this.dataSchema,
-                    tuningConfig.withBasePersistDirectory(basePersistDir),
-                    new FireDepartmentMetrics(), dataSegmentPusher,
-                    DruidStorageHandlerUtils.JSON_MAPPER,
-                    DruidStorageHandlerUtils.INDEX_IO,
-                    DruidStorageHandlerUtils.INDEX_MERGER_V9
+            .createOffline(this.dataSchema, tuningConfig, new FireDepartmentMetrics(),
+                    dataSegmentPusher, DruidStorageHandlerUtils.JSON_MAPPER,
+                    DruidStorageHandlerUtils.INDEX_IO, DruidStorageHandlerUtils.INDEX_MERGER_V9
             );
     Preconditions.checkArgument(maxPartitionSize > 0, "maxPartitionSize need to be greater than 0");
     this.maxPartitionSize = maxPartitionSize;
@@ -264,6 +265,7 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
     } catch (InterruptedException e) {
       Throwables.propagate(e);
     } finally {
+      tuningConfig.getBasePersistDirectory().delete();
       appenderator.close();
     }
   }
