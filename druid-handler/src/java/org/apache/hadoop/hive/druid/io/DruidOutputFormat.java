@@ -28,6 +28,7 @@ import io.druid.data.input.impl.MapInputRowParser;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.data.input.impl.TimestampSpec;
+import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -100,7 +101,10 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
 
     final GranularitySpec granularitySpec = new UniformGranularitySpec(
             Granularity.valueOf(segmentGranularity),
-            null,
+            QueryGranularity.fromString(
+                    tableProperties.getProperty(Constants.DRUID_QUERY_GRANULARITY) == null
+                            ? "NONE"
+                            : tableProperties.getProperty(Constants.DRUID_QUERY_GRANULARITY)),
             null
     );
 
