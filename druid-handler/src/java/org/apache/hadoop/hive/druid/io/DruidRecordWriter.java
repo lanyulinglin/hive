@@ -222,7 +222,6 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
         LOG.info(String.format("Dropping segment [%s]", dataSegmentId.toString()));
         appenderator.drop(dataSegmentId).get();
       }
-
       LOG.info(String.format("Published [%,d] segments.", segmentsToPush.size()));
     } catch (InterruptedException e) {
       LOG.error(String.format("got interrupted, failed to push  [%,d] segments.",
@@ -289,5 +288,4 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
   public void close(Reporter reporter) throws IOException {
     this.close(true);
   }
-
 }
