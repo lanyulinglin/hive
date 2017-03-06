@@ -189,8 +189,6 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
                 .makeSegmentDescriptorOutputPath(pushedSegment, segmentsDescriptorDir);
         DruidStorageHandlerUtils
                 .writeSegmentDescriptor(fileSystem, pushedSegment, segmentDescriptorOutputPath);
-        LOG.info(String.format("Dropping segment [%s]", pushedSegment.getIdentifier()));
-        appenderator.drop(SegmentIdentifier.fromDataSegment(pushedSegment)).get();
         LOG.info(
                 String.format(
                         "Pushed the segment [%s] and persisted the descriptor located at [%s]",
@@ -219,6 +217,10 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
                 Joiner.on(", ").join(toPushSegmentsHashSet),
                 Joiner.on(", ").join(pushedSegmentIdentifierHashSet)
         ));
+      }
+      for (SegmentIdentifier dataSegmentId : segmentsToPush) {
+        LOG.info(String.format("Dropping segment [%s]", dataSegmentId.toString()));
+        appenderator.drop(dataSegmentId).get();
       }
 
       LOG.info(String.format("Published [%,d] segments.", segmentsToPush.size()));
