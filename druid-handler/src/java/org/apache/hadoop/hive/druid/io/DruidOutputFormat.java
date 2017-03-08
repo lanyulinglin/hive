@@ -183,10 +183,23 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
             .getIntVar(jc, HiveConf.ConfVars.HIVE_DRUID_MAX_PARTITION_SIZE);
     String basePersistDirectory = HiveConf
             .getVar(jc, HiveConf.ConfVars.HIVE_DRUID_BASE_PERSIST_DIRECTORY);
-    final RealtimeTuningConfig realtimeTuningConfig = RealtimeTuningConfig
-            .makeDefaultTuningConfig(new File(
-                    basePersistDirectory))
-            .withVersioningPolicy(new CustomVersioningPolicy(version));
+    Integer maxRowInMemory = HiveConf.getIntVar(jc, HiveConf.ConfVars.HIVE_DRUID_MAX_ROW_IN_MEMORY);
+
+    RealtimeTuningConfig realtimeTuningConfig = new RealtimeTuningConfig(maxRowInMemory,
+            null,
+            null,
+            new File(basePersistDirectory),
+            new CustomVersioningPolicy(version),
+            null,
+            null,
+            null,
+            null,
+            true,
+            0,
+            0,
+            true,
+            null
+    );
 
     LOG.debug(String.format("running with Data schema [%s] ", dataSchema));
     return new DruidRecordWriter(dataSchema, realtimeTuningConfig, hdfsDataSegmentPusher,
