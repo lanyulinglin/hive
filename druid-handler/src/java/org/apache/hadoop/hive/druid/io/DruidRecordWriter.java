@@ -158,7 +158,8 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
                 new LinearShardSpec(currentOpenSegment.getShardSpec().getPartitionNum() + 1)
         );
         pushSegments(Lists.newArrayList(currentOpenSegment));
-        LOG.info(String.format("Creating new partition for segment [%s], partition num [%d]", retVal.getIdentifierAsString(), retVal.getShardSpec().getPartitionNum()));
+        LOG.info("Creating new partition for segment {}, partition num {}",
+                retVal.getIdentifierAsString(), retVal.getShardSpec().getPartitionNum());
         currentOpenSegment = retVal;
         return retVal;
       }
@@ -219,9 +220,11 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
         ));
       }
       for (SegmentIdentifier dataSegmentId : segmentsToPush) {
-        LOG.info(String.format("Dropping segment [%s]", dataSegmentId.toString()));
+
+        LOG.info("Dropping segment {}", dataSegmentId.toString());
         appenderator.drop(dataSegmentId).get();
       }
+
       LOG.info(String.format("Published [%,d] segments.", segmentsToPush.size()));
     } catch (InterruptedException e) {
       LOG.error(String.format("got interrupted, failed to push  [%,d] segments.",
