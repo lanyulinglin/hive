@@ -73,7 +73,7 @@ public class HiveDruidSplit extends FileSplit implements org.apache.hadoop.mapre
 
   @Override
   public String[] getLocations() throws IOException {
-    return hosts == null ? new String[0] : hosts;
+    return hosts;
   }
 
   @Override
