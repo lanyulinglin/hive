@@ -220,7 +220,11 @@ public class ReduceSinkDeDuplication extends Transform {
         ExprNodeDesc cexpr = cRSc.getKeyCols().get(i);
         ExprNodeDesc[] pexprs = new ExprNodeDesc[pRSs.length];
         for (int tag = 0; tag < pRSs.length; tag++) {
-          pexprs[tag] = pRSs[tag].getConf().getKeyCols().get(i);
+          final ArrayList<ExprNodeDesc> parentKeyCols = pRSs[tag].getConf().getKeyCols();
+          if (i >= parentKeyCols.size()) {
+            return false;
+          }
+          pexprs[tag] = parentKeyCols.get(i);
         }
         int found = CorrelationUtilities.indexOf(cexpr, pexprs, cRS, pRSs, sorted);
         if (found != i) {
