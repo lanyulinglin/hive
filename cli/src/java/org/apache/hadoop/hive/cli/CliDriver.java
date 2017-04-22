@@ -236,10 +236,6 @@ public class CliDriver {
               return ret;
             }
 
-            // query has run capture the time
-            long end = System.currentTimeMillis();
-            double timeTaken = (end - start) / 1000.0;
-
             ArrayList<String> res = new ArrayList<String>();
 
             printHeader(qp, out);
@@ -275,6 +271,9 @@ public class CliDriver {
             if (out instanceof FetchConverter) {
               ((FetchConverter)out).fetchFinished();
             }
+            // query has run capture the time
+            long end = System.currentTimeMillis();
+            double timeTaken = (end - start) / 1000.0;
 
             console.printInfo("Time taken: " + timeTaken + " seconds" +
                 (counter == 0 ? "" : ", Fetched: " + counter + " row(s)"));
