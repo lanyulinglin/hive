@@ -82,21 +82,21 @@ public abstract class DruidQueryRecordReader<T extends BaseQuery<R>, R extends C
     }
 
     final Lifecycle lifecycle = new Lifecycle();
-    final int numConnection = HiveConf
-            .getIntVar(conf, HiveConf.ConfVars.HIVE_DRUID_NUM_HTTP_CONNECTION);
-    final Period readTimeout = new Period(
-            HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_DRUID_HTTP_READ_TIMEOUT));
-
-    HttpClient client = HttpClientInit.createClient(
-            HttpClientConfig.builder().withReadTimeout(readTimeout.toStandardDuration())
-                    .withNumConnections(numConnection).build(), lifecycle);
     try {
       lifecycle.start();
     } catch (Exception e) {
       LOG.error("Issues with lifecycle start", e);
     }
+    final int numConnection = HiveConf
+            .getIntVar(conf, HiveConf.ConfVars.HIVE_DRUID_NUM_HTTP_CONNECTION);
+    final Period readTimeout = new Period(
+            HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_DRUID_HTTP_READ_TIMEOUT));
+
     InputStream response;
     try {
+      HttpClient client = HttpClientInit.createClient(
+              HttpClientConfig.builder().withReadTimeout(readTimeout.toStandardDuration())
+                      .withNumConnections(numConnection).build(), lifecycle);
       response = DruidStorageHandlerUtils.submitRequest(client,
               DruidStorageHandlerUtils.createRequest(hiveDruidSplit.getLocations()[0], query));
     } catch (Exception e) {
