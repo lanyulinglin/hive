@@ -101,20 +101,12 @@ public class DruidSerDe extends AbstractSerDe {
 
   protected static final Logger LOG = LoggerFactory.getLogger(DruidSerDe.class);
 
-  private int numConnection;
-  private Period readTimeout;
-
   private String[] columns;
   private PrimitiveTypeInfo[] types;
   private ObjectInspector inspector;
 
   @Override
   public void initialize(Configuration configuration, Properties properties) throws SerDeException {
-    // Init connection properties
-    numConnection = HiveConf
-          .getIntVar(configuration, HiveConf.ConfVars.HIVE_DRUID_NUM_HTTP_CONNECTION);
-    readTimeout = new Period(
-          HiveConf.getVar(configuration, HiveConf.ConfVars.HIVE_DRUID_HTTP_READ_TIMEOUT));
 
     final List<String> columnNames = new ArrayList<>();
     final List<PrimitiveTypeInfo> columnTypes = new ArrayList<>();

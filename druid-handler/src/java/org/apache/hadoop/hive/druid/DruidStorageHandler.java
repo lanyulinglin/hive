@@ -603,11 +603,11 @@ public class DruidStorageHandler extends DefaultHiveMetaHook implements HiveStor
 
   private static HttpClient makeHttpClient(Lifecycle lifecycle) {
     final int numConnection = HiveConf
-            .getIntVar(SessionState.get().getConf(),
+            .getIntVar(SessionState.getSessionConf(),
                     HiveConf.ConfVars.HIVE_DRUID_NUM_HTTP_CONNECTION
             );
     final Period readTimeout = new Period(
-            HiveConf.getVar(SessionState.get().getConf(),
+            HiveConf.getVar(SessionState.getSessionConf(),
                     HiveConf.ConfVars.HIVE_DRUID_HTTP_READ_TIMEOUT
             ));
     LOG.info("creating Druid HTTP client with {} number Connection and {} Read timeout", numConnection, readTimeout.getMillis());
