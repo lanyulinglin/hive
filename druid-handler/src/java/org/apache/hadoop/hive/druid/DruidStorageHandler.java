@@ -602,7 +602,6 @@ public class DruidStorageHandler extends DefaultHiveMetaHook implements HiveStor
   }
 
   private static HttpClient makeHttpClient(Lifecycle lifecycle) {
-    LOG.info("creating HTTP client");
     final int numConnection = HiveConf
             .getIntVar(SessionState.get().getConf(),
                     HiveConf.ConfVars.HIVE_DRUID_NUM_HTTP_CONNECTION
@@ -611,6 +610,7 @@ public class DruidStorageHandler extends DefaultHiveMetaHook implements HiveStor
             HiveConf.getVar(SessionState.get().getConf(),
                     HiveConf.ConfVars.HIVE_DRUID_HTTP_READ_TIMEOUT
             ));
+    LOG.info("creating Druid HTTP client with {} number Connection and {} Read timeout", numConnection, readTimeout.getMillis());
 
     return HttpClientInit.createClient(
             HttpClientConfig.builder().withNumConnections(numConnection)
