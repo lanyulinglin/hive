@@ -93,6 +93,23 @@ public class DruidStorageHandler extends DefaultHiveMetaHook implements HiveStor
   protected static final SessionState.LogHelper console = new SessionState.LogHelper(LOG);
 
   public static final String SEGMENTS_DESCRIPTOR_DIR_NAME = "segmentsDescriptorDir";
+  private static final HttpClient HTTP_CLIENT;
+  static {
+    final Lifecycle lifecycle = new Lifecycle();
+    try {
+      lifecycle.start();
+    } catch (Exception e) {
+      LOG.error("Issues with lifecycle start", e);
+    }
+    HTTP_CLIENT = makeHttpClient(lifecycle);
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        lifecycle.stop();
+      }
+    });
+  }
+
 
   private final SQLMetadataConnector connector;
 
@@ -583,13 +600,14 @@ public class DruidStorageHandler extends DefaultHiveMetaHook implements HiveStor
     return rootWorkingDir;
   }
 
-  private HttpClient makeHttpClient(Lifecycle lifecycle) {
+  private static HttpClient makeHttpClient(Lifecycle lifecycle) {
+    LOG.info("creating HTTP client");
     final int numConnection = HiveConf
-            .getIntVar(getConf(),
+            .getIntVar(SessionState.get().getConf(),
                     HiveConf.ConfVars.HIVE_DRUID_NUM_HTTP_CONNECTION
             );
     final Period readTimeout = new Period(
-            HiveConf.getVar(getConf(),
+            HiveConf.getVar(SessionState.get().getConf(),
                     HiveConf.ConfVars.HIVE_DRUID_HTTP_READ_TIMEOUT
             ));
 
@@ -598,5 +616,9 @@ public class DruidStorageHandler extends DefaultHiveMetaHook implements HiveStor
                     .withReadTimeout(new Period(readTimeout).toStandardDuration()).build(),
             lifecycle
     );
+  }
+
+  public static HttpClient getHttpClient() {
+    return HTTP_CLIENT;
   }
 }
