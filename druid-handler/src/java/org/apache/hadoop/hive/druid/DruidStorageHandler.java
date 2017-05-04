@@ -67,6 +67,7 @@ import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputFormat;
+import org.apache.hive.common.util.ShutdownHookManager;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
@@ -102,7 +103,7 @@ public class DruidStorageHandler extends DefaultHiveMetaHook implements HiveStor
       LOG.error("Issues with lifecycle start", e);
     }
     HTTP_CLIENT = makeHttpClient(lifecycle);
-    Runtime.getRuntime().addShutdownHook(new Thread() {
+    ShutdownHookManager.addShutdownHook(new Thread() {
       @Override
       public void run() {
         lifecycle.stop();
