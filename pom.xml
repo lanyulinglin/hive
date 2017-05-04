@@ -119,7 +119,7 @@
     <avatica.version>1.8.0.2.6.0.2-SNAPSHOT</avatica.version>
     <avro.version>1.7.7</avro.version>
     <bonecp.version>0.8.0.RELEASE</bonecp.version>
-    <calcite.version>1.10.0.2.6.0.2-SNAPSHOT</calcite.version>
+    <calcite.version>1.10.0.2.6.0.1-34</calcite.version>
     <datanucleus-api-jdo.version>4.2.1</datanucleus-api-jdo.version>
     <datanucleus-core.version>4.1.6</datanucleus-core.version>
     <datanucleus-rdbms.version>4.1.7</datanucleus-rdbms.version>
