@@ -24,7 +24,6 @@ import io.druid.segment.realtime.appenderator.SegmentsAndMetadata;
 import io.druid.segment.realtime.plumber.Committers;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
-import org.apache.calcite.adapter.druid.DruidTable;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -203,8 +202,15 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
         ));
       }
       for (SegmentIdentifier dataSegmentId : segmentsToPush) {
-        LOG.info("Dropping segment {}", dataSegmentId.toString());
-        appenderator.drop(dataSegmentId).get();
+        try {
+          LOG.info("Dropping segment {}", dataSegmentId.toString());
+          appenderator.drop(dataSegmentId).get();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          LOG.warn("Interrupted during close()", e);
+        } catch (ExecutionException e) {
+          LOG.warn("Unable to abandon existing segments during close()", e);
+        }
       }
 
       LOG.info(String.format("Published [%,d] segments.", segmentsToPush.size()));
@@ -222,7 +228,7 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
   @Override
   public void write(Writable w) throws IOException {
     DruidWritable record = (DruidWritable) w;
-    final long timestamp = (long) record.getValue().get(DruidTable.DEFAULT_TIMESTAMP_COLUMN);
+    final long timestamp = (long) record.getValue().get(DruidStorageHandlerUtils.DEFAULT_TIMESTAMP_COLUMN);
     final long truncatedTime = (long) record.getValue()
             .get(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME);
 
