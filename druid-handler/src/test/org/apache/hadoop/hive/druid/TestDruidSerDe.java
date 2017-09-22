@@ -65,6 +65,7 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -512,6 +513,7 @@ public class TestDruidSerDe {
    * @throws NoSuchMethodException
    */
   @Test
+  @Ignore
   public void testDruidDeserializer()
           throws SerDeException, JsonParseException, JsonMappingException,
           NoSuchFieldException, SecurityException, IllegalArgumentException,
