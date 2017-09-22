@@ -37,6 +37,7 @@ public final class DruidSerDeUtils {
   protected static final String ISO_TIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
 
   protected static final String FLOAT_TYPE = "FLOAT";
+  protected static final String DOUBLE_TYPE = "DOUBLE";
   protected static final String LONG_TYPE = "LONG";
   protected static final String STRING_TYPE = "STRING";
 
@@ -47,6 +48,8 @@ public final class DruidSerDeUtils {
     switch (typeName) {
       case FLOAT_TYPE:
         return TypeInfoFactory.floatTypeInfo;
+      case DOUBLE_TYPE:
+        return TypeInfoFactory.doubleTypeInfo;
       case LONG_TYPE:
         return TypeInfoFactory.longTypeInfo;
       case STRING_TYPE:

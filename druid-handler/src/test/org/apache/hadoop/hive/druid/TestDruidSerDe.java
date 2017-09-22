@@ -142,9 +142,9 @@ public class TestDruidSerDe {
   // Timeseries query results as records
   private static final Object[][] TIMESERIES_QUERY_RESULTS_RECORDS = new Object[][] {
           new Object[] { new TimestampWritable(new Timestamp(1325376000000L)), new LongWritable(0),
-                  new FloatWritable(1.0F), new FloatWritable(2.2222F) },
+                  new DoubleWritable(1.0), new FloatWritable(2.2222F) },
           new Object[] { new TimestampWritable(new Timestamp(1325462400000L)), new LongWritable(2),
-                  new FloatWritable(3.32F), new FloatWritable(4F) }
+                  new DoubleWritable(3.32), new FloatWritable(4F) }
   };
 
   // TopN query
@@ -247,19 +247,19 @@ public class TestDruidSerDe {
   // TopN query results as records
   private static final Object[][] TOPN_QUERY_RESULTS_RECORDS = new Object[][] {
           new Object[] { new TimestampWritable(new Timestamp(1377907200000L)), new Text("dim1_val"),
-                  new LongWritable(111), new FloatWritable(10669F),
+                  new LongWritable(111), new DoubleWritable(10669.0),
                   new FloatWritable(96.11711711711712F) },
           new Object[] { new TimestampWritable(new Timestamp(1377907200000L)),
-                  new Text("another_dim1_val"), new LongWritable(88), new FloatWritable(28344F),
+                  new Text("another_dim1_val"), new LongWritable(88), new DoubleWritable(28344.0),
                   new FloatWritable(322.09090909090907F) },
           new Object[] { new TimestampWritable(new Timestamp(1377907200000L)),
-                  new Text("dim1_val3"), new LongWritable(70), new FloatWritable(871F),
+                  new Text("dim1_val3"), new LongWritable(70), new DoubleWritable(871D),
                   new FloatWritable(12.442857142857143F) },
           new Object[] { new TimestampWritable(new Timestamp(1377907200000L)),
-                  new Text("dim1_val4"), new LongWritable(62), new FloatWritable(815F),
+                  new Text("dim1_val4"), new LongWritable(62), new DoubleWritable(815.0),
                   new FloatWritable(13.14516129032258F) },
           new Object[] { new TimestampWritable(new Timestamp(1377907200000L)),
-                  new Text("dim1_val5"), new LongWritable(60), new FloatWritable(2787F),
+                  new Text("dim1_val5"), new LongWritable(60), new DoubleWritable(2787.0),
                   new FloatWritable(46.45F) }
   };
 
@@ -336,10 +336,10 @@ public class TestDruidSerDe {
   // GroupBy query results as records
   private static final Object[][] GROUP_BY_QUERY_RESULTS_RECORDS = new Object[][] {
           new Object[] { new TimestampWritable(new Timestamp(1325376000000L)), new Text("India"),
-                  new Text("phone"), new LongWritable(88), new FloatWritable(29.91233453F),
+                  new Text("phone"), new LongWritable(88), new DoubleWritable(29.91233453),
                   new FloatWritable(60.32F) },
           new Object[] { new TimestampWritable(new Timestamp(1325376012000L)), new Text("Spain"),
-                  new Text("pc"), new LongWritable(16), new FloatWritable(172.93494959F),
+                  new Text("pc"), new LongWritable(16), new DoubleWritable(172.93494959),
                   new FloatWritable(6.333333F) }
   };
 
@@ -348,10 +348,10 @@ public class TestDruidSerDe {
   private static final String GROUP_BY_COLUMN_TYPES = "timestamp,string,string,int,double,float";
   private static final Object[][] GROUP_BY_QUERY_RESULTS_RECORDS_2 = new Object[][] {
     new Object[] { new TimestampWritable(new Timestamp(1325376000000L)), new Text("India"),
-            new Text("phone"), new IntWritable(88), new DoubleWritable(29.91233453F),
+            new Text("phone"), new IntWritable(88), new DoubleWritable(29.91233453),
             new FloatWritable(60.32F) },
     new Object[] { new TimestampWritable(new Timestamp(1325376012000L)), new Text("Spain"),
-            new Text("pc"), new IntWritable(16), new DoubleWritable(172.93494959F),
+            new Text("pc"), new IntWritable(16), new DoubleWritable(172.93494959),
             new FloatWritable(6.333333F) }
   };
 
@@ -643,7 +643,9 @@ public class TestDruidSerDe {
       Object[] expectedFieldsData = records[pos];
       assertEquals(expectedFieldsData.length, fieldRefs.size());
       for (int i = 0; i < fieldRefs.size(); i++) {
-        assertEquals("Field " + i + " type", expectedFieldsData[i].getClass(), row.get(i).getClass());
+        assertEquals("Field " + i + " type", expectedFieldsData[i].getClass(),
+                row.get(i).getClass()
+        );
         Object fieldData = oi.getStructFieldData(row, fieldRefs.get(i));
         assertEquals("Field " + i, expectedFieldsData[i], fieldData);
       }

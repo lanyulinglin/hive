@@ -89,14 +89,17 @@ public class DruidGroupByQueryRecordReader
     for (int i = 0; i < query.getAggregatorSpecs().size(); i++, counter++) {
       AggregatorFactory af = query.getAggregatorSpecs().get(i);
       switch (af.getTypeName().toUpperCase()) {
-        case DruidSerDeUtils.FLOAT_TYPE:
-          extractors[counter] = Extract.FLOAT;
-          break;
-        case DruidSerDeUtils.LONG_TYPE:
-          extractors[counter] = Extract.LONG;
-          break;
-        default:
-          throw new IOException("Type not supported");
+      case DruidSerDeUtils.FLOAT_TYPE:
+        extractors[counter] = Extract.FLOAT;
+        break;
+      case DruidSerDeUtils.LONG_TYPE:
+        extractors[counter] = Extract.LONG;
+        break;
+      case DruidSerDeUtils.DOUBLE_TYPE:
+        extractors[counter] = Extract.DOUBLE;
+        break;
+      default:
+        throw new IOException("Type not supported");
       }
     }
     for (int i = 0; i < query.getPostAggregatorSpecs().size(); i++, counter++) {
@@ -176,6 +179,9 @@ public class DruidGroupByQueryRecordReader
         case LONG:
           value.getValue().put(af.getName(), current.getLongMetric(af.getName()));
           break;
+      case DOUBLE:
+          value.getValue().put(af.getName(), current.getDoubleMetric(af.getName()));
+          break;
       }
     }
     // 4) The post-aggregation columns
@@ -222,12 +228,15 @@ public class DruidGroupByQueryRecordReader
       // 3) The aggregation columns
       for (AggregatorFactory af : query.getAggregatorSpecs()) {
         switch (extractors[counter++]) {
-          case FLOAT:
-            value.getValue().put(af.getName(), current.getFloatMetric(af.getName()));
-            break;
-          case LONG:
-            value.getValue().put(af.getName(), current.getLongMetric(af.getName()));
-            break;
+        case FLOAT:
+          value.getValue().put(af.getName(), current.getFloatMetric(af.getName()));
+          break;
+        case LONG:
+          value.getValue().put(af.getName(), current.getLongMetric(af.getName()));
+          break;
+        case DOUBLE:
+          value.getValue().put(af.getName(), current.getDoubleMetric(af.getName()));
+          break;
         }
       }
       // 4) The post-aggregation columns
@@ -247,7 +256,8 @@ public class DruidGroupByQueryRecordReader
 
   private enum Extract {
     FLOAT,
-    LONG
+    LONG,
+    DOUBLE
   }
 
 }
