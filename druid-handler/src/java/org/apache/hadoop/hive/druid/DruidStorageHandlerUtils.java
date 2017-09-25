@@ -130,6 +130,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
@@ -256,6 +257,13 @@ public final class DruidStorageHandlerUtils {
     } catch (InterruptedException e) {
       throw new IOException(e.getCause());
     }
+    return response;
+  }
+
+  public static Future<InputStream> submitRequest2(HttpClient client, Request request)
+          throws IOException {
+    Future response;
+      response = client.go(request, new InputStreamResponseHandler());
     return response;
   }
 

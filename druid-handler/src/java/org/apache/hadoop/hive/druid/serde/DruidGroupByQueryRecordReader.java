@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.JavaType;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.druid.DruidStorageHandlerUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
@@ -41,6 +42,8 @@ import io.druid.query.groupby.GroupByQuery;
  */
 public class DruidGroupByQueryRecordReader
         extends DruidQueryRecordReader<GroupByQuery, Row> {
+  private final static TypeReference<List<Row>> TYPE_REFERENCE = new TypeReference<List<Row>>() {
+  };
 
   private Row current;
 
@@ -68,11 +71,8 @@ public class DruidGroupByQueryRecordReader
   }
 
   @Override
-  protected List<Row> createResultsList(InputStream content) throws IOException {
-    return DruidStorageHandlerUtils.SMILE_MAPPER.readValue(content,
-            new TypeReference<List<Row>>() {
-            }
-    );
+  protected JavaType getResultTypeDef() {
+    return DruidStorageHandlerUtils.JSON_MAPPER.getTypeFactory().constructType(TYPE_REFERENCE);
   }
 
   private void initDimensionTypes() throws IOException {
@@ -99,7 +99,7 @@ public class DruidGroupByQueryRecordReader
         extractors[counter] = Extract.DOUBLE;
         break;
       default:
-        throw new IOException("Type not supported");
+        throw new IOException("Type [" + af.getTypeName().toUpperCase() + "] not supported");
       }
     }
     for (int i = 0; i < query.getPostAggregatorSpecs().size(); i++, counter++) {
@@ -121,8 +121,8 @@ public class DruidGroupByQueryRecordReader
       }
     }
     // Results
-    if (results.hasNext()) {
-      current = results.next();
+    if (queryResultsIterator.hasNext()) {
+      current = queryResultsIterator.next();
       indexes = new int[query.getDimensions().size()];
       for (int i = 0; i < query.getDimensions().size(); i++) {
         DimensionSpec ds = query.getDimensions().get(i);
@@ -251,7 +251,7 @@ public class DruidGroupByQueryRecordReader
 
   @Override
   public float getProgress() throws IOException {
-    return results.hasNext() ? 0 : 1;
+    return queryResultsIterator.hasNext() ? 0 : 1;
   }
 
   private enum Extract {
