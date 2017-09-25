@@ -40,8 +40,8 @@ import io.druid.query.topn.TopNResultValue;
 public class DruidTopNQueryRecordReader
         extends DruidQueryRecordReader<TopNQuery, Result<TopNResultValue>> {
 
-  private static final TypeReference<List<Result<TopNResultValue>>> TYPE_REFERENCE =
-          new TypeReference<List<Result<TopNResultValue>>>() {
+  private static final TypeReference<Result<TopNResultValue>> TYPE_REFERENCE =
+          new TypeReference<Result<TopNResultValue>>() {
           };
 
   private Result<TopNResultValue> current;

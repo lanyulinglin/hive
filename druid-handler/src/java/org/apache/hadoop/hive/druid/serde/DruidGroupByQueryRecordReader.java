@@ -42,7 +42,7 @@ import io.druid.query.groupby.GroupByQuery;
  */
 public class DruidGroupByQueryRecordReader
         extends DruidQueryRecordReader<GroupByQuery, Row> {
-  private final static TypeReference<List<Row>> TYPE_REFERENCE = new TypeReference<List<Row>>() {
+  private final static TypeReference<Row> TYPE_REFERENCE = new TypeReference<Row>() {
   };
 
   private Row current;

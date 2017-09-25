@@ -37,7 +37,7 @@ import io.druid.query.timeseries.TimeseriesResultValue;
 public class DruidTimeseriesQueryRecordReader
         extends DruidQueryRecordReader<TimeseriesQuery, Result<TimeseriesResultValue>> {
 
-  private static final TypeReference TYPE_REFERENCE = new TypeReference<List<Result<TimeseriesResultValue>>>() {
+  private static final TypeReference TYPE_REFERENCE = new TypeReference<Result<TimeseriesResultValue>>() {
   };
   private Result<TimeseriesResultValue> current;
 
