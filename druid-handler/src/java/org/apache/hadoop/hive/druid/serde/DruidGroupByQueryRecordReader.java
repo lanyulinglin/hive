@@ -18,10 +18,11 @@
 package org.apache.hadoop.hive.druid.serde;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.metamx.http.client.HttpClient;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.druid.DruidStorageHandlerUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
@@ -66,8 +67,12 @@ public class DruidGroupByQueryRecordReader
   }
 
   @Override
-  protected GroupByQuery createQuery(String content) throws IOException {
-    return DruidStorageHandlerUtils.JSON_MAPPER.readValue(content, GroupByQuery.class);
+  public void initialize(InputSplit split, Configuration conf, ObjectMapper mapper,
+          ObjectMapper smileMapper, HttpClient httpClient
+  ) throws IOException {
+    super.initialize(split, conf, mapper, smileMapper, httpClient);
+    initDimensionTypes();
+    initExtractors();
   }
 
   @Override

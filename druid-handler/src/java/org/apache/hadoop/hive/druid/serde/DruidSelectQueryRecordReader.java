@@ -51,11 +51,6 @@ public class DruidSelectQueryRecordReader
   private Iterator<EventHolder> values = Iterators.emptyIterator();
 
   @Override
-  protected SelectQuery createQuery(String content) throws IOException {
-    return DruidStorageHandlerUtils.JSON_MAPPER.readValue(content, SelectQuery.class);
-  }
-
-  @Override
   protected JavaType getResultTypeDef() {
     return DruidStorageHandlerUtils.JSON_MAPPER.getTypeFactory().constructType(TYPE_REFERENCE);
   }

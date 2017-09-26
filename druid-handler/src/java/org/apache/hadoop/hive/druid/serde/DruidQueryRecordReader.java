@@ -21,7 +21,10 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.ObjectCodec;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.Request;
 import com.metamx.http.client.response.InputStreamResponseHandler;
 import io.druid.java.util.common.IAE;
@@ -38,6 +41,7 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.parquet.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,15 +67,25 @@ public abstract class DruidQueryRecordReader<T extends BaseQuery<R>, R extends C
 
   private static final Logger LOG = LoggerFactory.getLogger(DruidQueryRecordReader.class);
 
+  private HttpClient httpClient;
+  private ObjectMapper mapper;
+  // Smile mapper is used to read query results that are serialized as binary instead of json
+  private ObjectMapper smileMapper;
+
+
   /**
    * Query that Druid executes.
    */
   protected T query;
 
   /**
-   * Query results.
+   * Query results as a streaming iterator.
    */
   protected JsonParserIterator<R> queryResultsIterator =  null;
+
+  /**
+   * Result type definition used to read the rows, this is query dependent.
+   */
   protected JavaType resultsType = null;
 
   @Override
@@ -79,30 +93,39 @@ public abstract class DruidQueryRecordReader<T extends BaseQuery<R>, R extends C
     initialize(split, context.getConfiguration());
   }
 
-  public void initialize(InputSplit split, Configuration conf) throws IOException {
+  public void initialize(InputSplit split, Configuration conf, ObjectMapper mapper,
+          ObjectMapper smileMapper, HttpClient httpClient
+  ) throws IOException {
     HiveDruidSplit hiveDruidSplit = (HiveDruidSplit) split;
-
+    Preconditions.checkNotNull(hiveDruidSplit, "input split is null ???");
+    this.mapper = Preconditions.checkNotNull(mapper, "object Mapper can not be null");
+    // Smile mapper is used to read query results that are serilized as binary instead of json
+    this.smileMapper = Preconditions.checkNotNull(smileMapper, "Smile Mapper can not be null");
     // Create query
-    query = createQuery(hiveDruidSplit.getDruidQuery());
-
-    resultsType = getResultTypeDef();
-
+    this.query = this.mapper.readerFor(Query.class)
+            .readValue(Preconditions.checkNotNull(hiveDruidSplit.getDruidQuery()));
+    Preconditions.checkNotNull(query);
+    this.resultsType = getResultTypeDef();
+    this.httpClient = Preconditions.checkNotNull(httpClient, "need Http Client");
     // Execute query
-    if (LOG.isInfoEnabled()) {
-      LOG.info("Retrieving from druid using query:\n " + query);
+    LOG.info("Retrieving data from druid using query:\n " + query);
+    final String address = hiveDruidSplit.getLocations()[0];
+    if (Strings.isNullOrEmpty(address)) {
+      throw new IOException("can not fetch results form empty or null host value");
     }
-
-    Request request = DruidStorageHandlerUtils
-            .createRequest(hiveDruidSplit.getLocations()[0], query);
-
-    Future<InputStream> inputStreamFuture = DruidStorageHandler.getHttpClient()
+    Request request = DruidStorageHandlerUtils.createSmileRequest(address, query);
+    Future<InputStream> inputStreamFuture = this.httpClient
             .go(request, new InputStreamResponseHandler());
-
-    queryResultsIterator = new JsonParserIterator(resultsType, inputStreamFuture,
-            request.getUrl().toString(), query);
+    queryResultsIterator = new JsonParserIterator(this.smileMapper, resultsType, inputStreamFuture,
+            request.getUrl().toString(), query
+    );
   }
 
-  protected abstract T createQuery(String content) throws IOException;
+  public void initialize(InputSplit split, Configuration conf) throws IOException {
+    initialize(split, conf, DruidStorageHandlerUtils.JSON_MAPPER,
+            DruidStorageHandlerUtils.SMILE_MAPPER, DruidStorageHandler.getHttpClient()
+    );
+  }
 
   protected abstract JavaType getResultTypeDef();
 
@@ -146,17 +169,24 @@ public abstract class DruidQueryRecordReader<T extends BaseQuery<R>, R extends C
   {
     private JsonParser jp;
     private ObjectCodec objectCodec;
+    private final ObjectMapper mapper;
     private final JavaType typeRef;
     private final Future<InputStream> future;
     private final Query<T> query;
     private final String url;
 
-    public JsonParserIterator(JavaType typeRef, Future<InputStream> future, String url, Query query)
+    public JsonParserIterator(ObjectMapper mapper,
+            JavaType typeRef,
+            Future<InputStream> future,
+            String url,
+            Query query
+    )
     {
       this.typeRef = typeRef;
       this.future = future;
       this.url = url;
       this.query = query;
+      this.mapper = mapper;
       jp = null;
     }
 
@@ -205,7 +235,7 @@ public abstract class DruidQueryRecordReader<T extends BaseQuery<R>, R extends C
           if (is == null) {
             throw  new IOException(String.format("query[%s] url[%s] timed out", query, url));
           } else {
-            jp = DruidStorageHandlerUtils.SMILE_MAPPER.getFactory().createParser(is);
+            jp = mapper.getFactory().createParser(is);
           }
           final JsonToken nextToken = jp.nextToken();
           if (nextToken == JsonToken.START_OBJECT) {
@@ -222,7 +252,7 @@ public abstract class DruidQueryRecordReader<T extends BaseQuery<R>, R extends C
           throw new RE(
                   e,
                   "Failure getting results for query[%s] url[%s] because of [%s]",
-                  query.getId(),
+                  query,
                   url,
                   e.getMessage()
           );

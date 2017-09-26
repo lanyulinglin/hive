@@ -273,7 +273,7 @@ public class DruidSerDe extends AbstractSerDe {
     InputStream response;
     try {
       response = DruidStorageHandlerUtils.submitRequest(DruidStorageHandler.getHttpClient(),
-              DruidStorageHandlerUtils.createRequest(address, query)
+              DruidStorageHandlerUtils.createSmileRequest(address, query)
       );
     } catch (Exception e) {
       throw new SerDeException(StringUtils.stringifyException(e));

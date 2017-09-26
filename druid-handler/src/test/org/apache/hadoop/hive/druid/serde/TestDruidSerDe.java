@@ -15,33 +15,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hive.druid;
+package org.apache.hadoop.hive.druid.serde;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyObject;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
+import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.util.concurrent.SettableFuture;
+import com.metamx.http.client.HttpClient;
+import com.metamx.http.client.response.HttpResponseHandler;
+import io.druid.data.input.Row;
+import io.druid.query.Result;
+import io.druid.query.select.SelectResultValue;
+import io.druid.query.timeseries.TimeseriesResultValue;
+import io.druid.query.topn.TopNResultValue;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.apache.hadoop.hive.conf.Constants;
-import org.apache.hadoop.hive.druid.serde.DruidGroupByQueryRecordReader;
-import org.apache.hadoop.hive.druid.serde.DruidQueryRecordReader;
-import org.apache.hadoop.hive.druid.serde.DruidSelectQueryRecordReader;
-import org.apache.hadoop.hive.druid.serde.DruidSerDe;
-import org.apache.hadoop.hive.druid.serde.DruidTimeseriesQueryRecordReader;
-import org.apache.hadoop.hive.druid.serde.DruidTopNQueryRecordReader;
-import org.apache.hadoop.hive.druid.serde.DruidWritable;
+import org.apache.hadoop.hive.druid.DruidStorageHandlerUtils;
+import org.apache.hadoop.hive.druid.QTestDruidSerDe;
+import org.apache.hadoop.hive.druid.io.DruidQueryBasedInputFormat;
+import org.apache.hadoop.hive.druid.io.HiveDruidSplit;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeException;
@@ -65,35 +75,21 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
-import org.junit.Ignore;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-
-import io.druid.data.input.Row;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Query;
-import io.druid.query.Result;
-import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.select.SelectQuery;
-import io.druid.query.select.SelectResultValue;
-import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultValue;
-import io.druid.query.topn.TopNQuery;
-import io.druid.query.topn.TopNResultValue;
 
 /**
  * Basic tests for Druid SerDe. The examples are taken from Druid 0.9.1.1
  * documentation.
  */
 public class TestDruidSerDe {
-
   // Timeseries query
   private static final String TIMESERIES_QUERY =
           "{  \"queryType\": \"timeseries\", "
@@ -139,6 +135,12 @@ public class TestDruidSerDe {
                   + " \"timestamp\": \"2012-01-02T00:00:00.000Z\",   "
                   + " \"result\": { \"sample_name1\": 2, \"sample_name2\": 3.32, \"sample_divide\": 4 }  "
                   + "}]";
+
+  private byte[] tsQueryResults;
+  private byte[] topNQueryResults;
+  private byte[] GBQueryResults;
+  private byte[] selectQueryResults;
+
 
   // Timeseries query results as records
   private static final Object[][] TIMESERIES_QUERY_RESULTS_RECORDS = new Object[][] {
@@ -500,6 +502,26 @@ public class TestDruidSerDe {
                   new FloatWritable(68.0F), new FloatWritable(0.0F) }
   };
 
+  @Before
+  public void setup() throws IOException {
+    tsQueryResults = DruidStorageHandlerUtils.SMILE_MAPPER
+            .writeValueAsBytes(DruidStorageHandlerUtils.JSON_MAPPER.readerFor(
+                    new TypeReference<List<Result<TimeseriesResultValue>>>() {
+                    }).readValue(TIMESERIES_QUERY_RESULTS));
+    topNQueryResults = DruidStorageHandlerUtils.SMILE_MAPPER
+            .writeValueAsBytes(DruidStorageHandlerUtils.JSON_MAPPER.readerFor(
+                    new TypeReference<List<Result<TopNResultValue>>>() {
+                    }).readValue(TOPN_QUERY_RESULTS));
+    GBQueryResults = DruidStorageHandlerUtils.SMILE_MAPPER
+            .writeValueAsBytes(DruidStorageHandlerUtils.JSON_MAPPER.readerFor(
+                    new TypeReference<List<Row>>() {
+                    }).readValue(GROUP_BY_QUERY_RESULTS));
+    selectQueryResults = DruidStorageHandlerUtils.SMILE_MAPPER
+            .writeValueAsBytes(DruidStorageHandlerUtils.JSON_MAPPER.readerFor(
+                    new TypeReference<List<Result<SelectResultValue>>>() {
+                    }).readValue(SELECT_QUERY_RESULTS));
+  }
+
   /**
    * Test the default behavior of the objects and object inspectors.
    * @throws IOException
@@ -513,12 +535,9 @@ public class TestDruidSerDe {
    * @throws NoSuchMethodException
    */
   @Test
-  @Ignore
-  public void testDruidDeserializer()
-          throws SerDeException, JsonParseException, JsonMappingException,
-          NoSuchFieldException, SecurityException, IllegalArgumentException,
-          IllegalAccessException, IOException, InterruptedException,
-          NoSuchMethodException, InvocationTargetException {
+  public void testDruidDeserializer() throws SerDeException, NoSuchFieldException,
+          SecurityException, IllegalArgumentException, IllegalAccessException,
+          IOException, InterruptedException, NoSuchMethodException, InvocationTargetException {
     // Create, initialize, and test the SerDe
     QTestDruidSerDe serDe = new QTestDruidSerDe();
     Configuration conf = new Configuration();
@@ -527,32 +546,32 @@ public class TestDruidSerDe {
     tbl = createPropertiesQuery("sample_datasource", Query.TIMESERIES, TIMESERIES_QUERY);
     SerDeUtils.initializeSerDe(serDe, conf, tbl, null);
     deserializeQueryResults(serDe, Query.TIMESERIES, TIMESERIES_QUERY,
-            TIMESERIES_QUERY_RESULTS, TIMESERIES_QUERY_RESULTS_RECORDS
+            tsQueryResults, TIMESERIES_QUERY_RESULTS_RECORDS
     );
     // TopN query
     tbl = createPropertiesQuery("sample_data", Query.TOPN, TOPN_QUERY);
     SerDeUtils.initializeSerDe(serDe, conf, tbl, null);
     deserializeQueryResults(serDe, Query.TOPN, TOPN_QUERY,
-            TOPN_QUERY_RESULTS, TOPN_QUERY_RESULTS_RECORDS
+            topNQueryResults, TOPN_QUERY_RESULTS_RECORDS
     );
     // GroupBy query
     tbl = createPropertiesQuery("sample_datasource", Query.GROUP_BY, GROUP_BY_QUERY);
     SerDeUtils.initializeSerDe(serDe, conf, tbl, null);
     deserializeQueryResults(serDe, Query.GROUP_BY, GROUP_BY_QUERY,
-            GROUP_BY_QUERY_RESULTS, GROUP_BY_QUERY_RESULTS_RECORDS
+            GBQueryResults, GROUP_BY_QUERY_RESULTS_RECORDS
     );
     // GroupBy query (simulating column types from metastore)
     tbl.setProperty(serdeConstants.LIST_COLUMNS, GROUP_BY_COLUMN_NAMES);
     tbl.setProperty(serdeConstants.LIST_COLUMN_TYPES, GROUP_BY_COLUMN_TYPES);
     SerDeUtils.initializeSerDe(serDe, conf, tbl, null);
     deserializeQueryResults(serDe, Query.GROUP_BY, GROUP_BY_QUERY,
-            GROUP_BY_QUERY_RESULTS, GROUP_BY_QUERY_RESULTS_RECORDS_2
+            GBQueryResults, GROUP_BY_QUERY_RESULTS_RECORDS_2
     );
     // Select query
     tbl = createPropertiesQuery("wikipedia", Query.SELECT, SELECT_QUERY);
     SerDeUtils.initializeSerDe(serDe, conf, tbl, null);
     deserializeQueryResults(serDe, Query.SELECT, SELECT_QUERY,
-            SELECT_QUERY_RESULTS, SELECT_QUERY_RESULTS_RECORDS
+            selectQueryResults, SELECT_QUERY_RESULTS_RECORDS
     );
   }
 
@@ -569,75 +588,31 @@ public class TestDruidSerDe {
   }
 
   @SuppressWarnings("unchecked")
-  private static void deserializeQueryResults(DruidSerDe serDe, String queryType, String jsonQuery,
-          String resultString, Object[][] records
-  ) throws SerDeException, JsonParseException,
-          JsonMappingException, IOException, NoSuchFieldException, SecurityException,
+  private void deserializeQueryResults(DruidSerDe serDe, String queryType, String jsonQuery,
+          byte[] resultString, Object[][] records
+  ) throws SerDeException, IOException, NoSuchFieldException, SecurityException,
           IllegalArgumentException, IllegalAccessException, InterruptedException,
           NoSuchMethodException, InvocationTargetException {
 
     // Initialize
-    Query<?> query = null;
-    DruidQueryRecordReader<?, ?> reader = null;
-    List<?> resultsList = null;
-    ObjectMapper mapper = DruidStorageHandlerUtils.JSON_MAPPER;
-    switch (queryType) {
-      case Query.TIMESERIES:
-        query = mapper.readValue(jsonQuery, TimeseriesQuery.class);
-        reader = new DruidTimeseriesQueryRecordReader();
-        resultsList = mapper.readValue(resultString,
-                new TypeReference<List<Result<TimeseriesResultValue>>>() {
-                }
-        );
-        break;
-      case Query.TOPN:
-        query = mapper.readValue(jsonQuery, TopNQuery.class);
-        reader = new DruidTopNQueryRecordReader();
-        resultsList = mapper.readValue(resultString,
-                new TypeReference<List<Result<TopNResultValue>>>() {
-                }
-        );
-        break;
-      case Query.GROUP_BY:
-        query = mapper.readValue(jsonQuery, GroupByQuery.class);
-        reader = new DruidGroupByQueryRecordReader();
-        resultsList = mapper.readValue(resultString,
-                new TypeReference<List<Row>>() {
-                }
-        );
-        break;
-      case Query.SELECT:
-        query = mapper.readValue(jsonQuery, SelectQuery.class);
-        reader = new DruidSelectQueryRecordReader();
-        resultsList = mapper.readValue(resultString,
-                new TypeReference<List<Result<SelectResultValue>>>() {
-                }
-        );
-        break;
-    }
+    HttpClient httpClient = mock(HttpClient.class);
+    SettableFuture<InputStream> futureResult = SettableFuture.create();
+    futureResult.set(new ByteArrayInputStream(resultString));
+    when(httpClient.go(anyObject(), any(HttpResponseHandler.class))).thenReturn(futureResult);
+    DruidQueryRecordReader<?, ?> reader = DruidQueryBasedInputFormat.getDruidQueryReader(queryType);
 
-    // Set query and fields access
-    Field field1 = DruidQueryRecordReader.class.getDeclaredField("query");
-    field1.setAccessible(true);
-    field1.set(reader, query);
-    if (reader instanceof DruidGroupByQueryRecordReader) {
-      Method method1 = DruidGroupByQueryRecordReader.class.getDeclaredMethod("initDimensionTypes");
-      method1.setAccessible(true);
-      method1.invoke(reader);
-      Method method2 = DruidGroupByQueryRecordReader.class.getDeclaredMethod("initExtractors");
-      method2.setAccessible(true);
-      method2.invoke(reader);
-    }
-    Field field2 = DruidQueryRecordReader.class.getDeclaredField("results");
-    field2.setAccessible(true);
+    final HiveDruidSplit split = new HiveDruidSplit(jsonQuery,
+            new Path("empty"),
+            new String[] { "testing_host" }
+    );
 
-    // Get the row structure
+    reader.initialize(split, new Configuration(), DruidStorageHandlerUtils.JSON_MAPPER,
+            DruidStorageHandlerUtils.SMILE_MAPPER, httpClient
+    );
     StructObjectInspector oi = (StructObjectInspector) serDe.getObjectInspector();
     List<? extends StructField> fieldRefs = oi.getAllStructFieldRefs();
 
     // Check mapred
-    Iterator<?> results = resultsList.iterator();
-    field2.set(reader, results);
     DruidWritable writable = new DruidWritable();
     int pos = 0;
     while (reader.next(NullWritable.get(), writable)) {
@@ -655,10 +630,17 @@ public class TestDruidSerDe {
     }
     assertEquals(pos, records.length);
 
-    // Check mapreduce
-    results = resultsList.iterator();
-    field2.set(reader, results);
-    pos = 0;
+
+    // Check mapreduce path
+    futureResult = SettableFuture.create();
+    futureResult.set(new ByteArrayInputStream(resultString));
+    when(httpClient.go(anyObject(), any(HttpResponseHandler.class))).thenReturn(futureResult);
+    reader = DruidQueryBasedInputFormat.getDruidQueryReader(queryType);
+    reader.initialize(split, new Configuration(), DruidStorageHandlerUtils.JSON_MAPPER,
+            DruidStorageHandlerUtils.SMILE_MAPPER, httpClient
+    );
+
+     pos = 0;
     while (reader.nextKeyValue()) {
       List<Object> row = (List<Object>) serDe.deserialize(reader.getCurrentValue());
       Object[] expectedFieldsData = records[pos];

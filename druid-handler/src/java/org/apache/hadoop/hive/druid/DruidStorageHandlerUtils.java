@@ -41,7 +41,6 @@ import io.druid.math.expr.ExprMacroTable;
 import io.druid.metadata.MetadataStorageTablesConfig;
 import io.druid.metadata.SQLMetadataConnector;
 import io.druid.metadata.storage.mysql.MySQLConnector;
-import io.druid.query.BaseQuery;
 import io.druid.query.select.SelectQueryConfig;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMergerV9;
@@ -59,7 +58,6 @@ import io.druid.timeline.partition.NumberedShardSpec;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.ShardSpec;
 
-import org.apache.calcite.adapter.druid.LocalInterval;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -70,28 +68,9 @@ import org.apache.hadoop.io.retry.RetryPolicies;
 import org.apache.hadoop.io.retry.RetryProxy;
 import org.apache.hadoop.util.StringUtils;
 
-import com.fasterxml.jackson.databind.InjectableValues;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
-import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Interner;
-import com.google.common.collect.Interners;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
-import com.google.common.io.CharStreams;
-import com.metamx.common.MapUtils;
-import com.metamx.emitter.EmittingLogger;
-import com.metamx.emitter.core.NoopEmitter;
-import com.metamx.emitter.service.ServiceEmitter;
-import com.metamx.http.client.HttpClient;
-import com.metamx.http.client.Request;
-import com.metamx.http.client.response.InputStreamResponseHandler;
-
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.joda.time.DateTime;
@@ -220,7 +199,7 @@ public final class DruidStorageHandlerUtils {
   }
 
   /**
-   * Method that creates a request for Druid JSON query (using SMILE).
+   * Method that creates a request for Druid query using SMILE format.
    *
    * @param address
    * @param query
@@ -229,7 +208,7 @@ public final class DruidStorageHandlerUtils {
    *
    * @throws IOException
    */
-  public static Request createRequest(String address, BaseQuery<?> query)
+  public static Request createSmileRequest(String address, io.druid.query.Query query)
           throws IOException {
     return new Request(HttpMethod.POST, new URL(String.format("%s/druid/v2/", "http://" + address)))
             .setContent(SMILE_MAPPER.writeValueAsBytes(query))

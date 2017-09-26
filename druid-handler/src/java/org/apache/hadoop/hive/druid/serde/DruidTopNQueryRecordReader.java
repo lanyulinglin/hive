@@ -49,11 +49,6 @@ public class DruidTopNQueryRecordReader
   private Iterator<DimensionAndMetricValueExtractor> values = Iterators.emptyIterator();
 
   @Override
-  protected TopNQuery createQuery(String content) throws IOException {
-    return DruidStorageHandlerUtils.JSON_MAPPER.readValue(content, TopNQuery.class);
-  }
-
-  @Override
   protected JavaType getResultTypeDef() {
     return DruidStorageHandlerUtils.JSON_MAPPER.getTypeFactory().constructType(TYPE_REFERENCE);
   }

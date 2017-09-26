@@ -273,7 +273,7 @@ public class DruidQueryBasedInputFormat extends InputFormat<NullWritable, DruidW
     InputStream response;
     try {
       response = DruidStorageHandlerUtils.submitRequest(DruidStorageHandler.getHttpClient(),
-              DruidStorageHandlerUtils.createRequest(address, metadataQuery)
+              DruidStorageHandlerUtils.createSmileRequest(address, metadataQuery)
       );
     } catch (Exception e) {
       throw new IOException(org.apache.hadoop.util.StringUtils.stringifyException(e));
@@ -326,7 +326,7 @@ public class DruidQueryBasedInputFormat extends InputFormat<NullWritable, DruidW
       TimeBoundaryQuery timeQuery = timeBuilder.build();
       try {
         response = DruidStorageHandlerUtils.submitRequest(DruidStorageHandler.getHttpClient(),
-                DruidStorageHandlerUtils.createRequest(address, timeQuery)
+                DruidStorageHandlerUtils.createSmileRequest(address, timeQuery)
         );
       } catch (Exception e) {
         throw new IOException(org.apache.hadoop.util.StringUtils.stringifyException(e));
