@@ -18,25 +18,22 @@
 package org.apache.hadoop.hive.druid.serde;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.metamx.http.client.HttpClient;
+import io.druid.data.input.MapBasedRow;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.druid.DruidStorageHandlerUtils;
-import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
-import org.joda.time.format.ISODateTimeFormat;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 
 import io.druid.data.input.Row;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
+
 
 /**
  * Record reader for results for Druid GroupByQuery.
@@ -46,24 +43,24 @@ public class DruidGroupByQueryRecordReader
   private final static TypeReference<Row> TYPE_REFERENCE = new TypeReference<Row>() {
   };
 
-  private Row current;
+  private MapBasedRow currentRow;
 
-  private int[] indexes = new int[0];
-
+/*
   // Grouping dimensions can have different types if we are grouping using an
   // extraction function
-  private PrimitiveTypeInfo[] dimensionTypes;
+  private List<PrimitiveTypeInfo> dimensionTypes;
 
   // Row objects returned by GroupByQuery have different access paths depending on
   // whether the result for the metric is a Float or a Long, thus we keep track
   // using these converters
-  private Extract[] extractors;
+  private ImmutableList<Extract> extractors;
+*/
 
   @Override
   public void initialize(InputSplit split, Configuration conf) throws IOException {
     super.initialize(split, conf);
-    initDimensionTypes();
-    initExtractors();
+    /*initDimensionTypes();
+    initExtractors();*/
   }
 
   @Override
@@ -71,8 +68,8 @@ public class DruidGroupByQueryRecordReader
           ObjectMapper smileMapper, HttpClient httpClient
   ) throws IOException {
     super.initialize(split, conf, mapper, smileMapper, httpClient);
-    initDimensionTypes();
-    initExtractors();
+    /*initDimensionTypes();
+    initExtractors();*/
   }
 
   @Override
@@ -80,60 +77,65 @@ public class DruidGroupByQueryRecordReader
     return DruidStorageHandlerUtils.JSON_MAPPER.getTypeFactory().constructType(TYPE_REFERENCE);
   }
 
-  private void initDimensionTypes() throws IOException {
-    dimensionTypes = new PrimitiveTypeInfo[query.getDimensions().size()];
-    for (int i = 0; i < query.getDimensions().size(); i++) {
-      dimensionTypes[i] = DruidSerDeUtils.extractTypeFromDimension(query.getDimensions().get(i));
-    }
-  }
-
-  private void initExtractors() throws IOException {
-    extractors = new Extract[query.getAggregatorSpecs().size() + query.getPostAggregatorSpecs()
-            .size()];
-    int counter = 0;
-    for (int i = 0; i < query.getAggregatorSpecs().size(); i++, counter++) {
-      AggregatorFactory af = query.getAggregatorSpecs().get(i);
-      switch (af.getTypeName().toUpperCase()) {
-      case DruidSerDeUtils.FLOAT_TYPE:
-        extractors[counter] = Extract.FLOAT;
-        break;
-      case DruidSerDeUtils.LONG_TYPE:
-        extractors[counter] = Extract.LONG;
-        break;
-      case DruidSerDeUtils.DOUBLE_TYPE:
-        extractors[counter] = Extract.DOUBLE;
-        break;
-      default:
-        throw new IOException("Type [" + af.getTypeName().toUpperCase() + "] not supported");
+  /*private void initDimensionTypes() throws IOException {
+    dimensionTypes = Lists.transform(query.getDimensions(), new Function<DimensionSpec, PrimitiveTypeInfo>() {
+      @Nullable
+      @Override
+      public PrimitiveTypeInfo apply(@Nullable DimensionSpec dimensionSpec
+      ) {
+        return DruidSerDeUtils.extractTypeFromDimension(dimensionSpec);
       }
-    }
-    for (int i = 0; i < query.getPostAggregatorSpecs().size(); i++, counter++) {
-      extractors[counter] = Extract.FLOAT;
-    }
-  }
+    });
+  }*/
+
+ /* private void initExtractors() throws IOException {
+
+    List<Extract> aggregatorExtractors = Lists.transform(query.getAggregatorSpecs(),
+            new Function<AggregatorFactory, Extract>() {
+              @Nullable
+              @Override
+              public Extract apply(@Nullable AggregatorFactory aggregatorFactory
+              ) {
+                switch (aggregatorFactory.getTypeName().toUpperCase()) {
+                case DruidSerDeUtils.FLOAT_TYPE:
+                  return Extract.FLOAT;
+                case DruidSerDeUtils.LONG_TYPE:
+                  return Extract.LONG;
+                case DruidSerDeUtils.DOUBLE_TYPE:
+                  return Extract.DOUBLE;
+                }
+                throw new RuntimeException("Type [" + aggregatorFactory.getTypeName().toUpperCase()
+                        + "] not supported");
+              }
+            }
+    );*/
+
+    /*List<Extract> postaggregateExtractor = Lists.transform(query.getPostAggregatorSpecs(),
+            new Function<PostAggregator, Extract>() {
+              @Nullable
+              @Override
+              public Extract apply(@Nullable PostAggregator postAggregator) {
+                return Extract.FLOAT;
+              }
+            }
+    );
+
+    extractors = new ImmutableList.Builder<Extract>().addAll(aggregatorExtractors).addAll(postaggregateExtractor).build();
+
+  }*/
 
   @Override
   public boolean nextKeyValue() {
-    // Refresh indexes
-    for (int i = indexes.length - 1; i >= 0; i--) {
-      if (indexes[i] > 0) {
-        indexes[i]--;
-        for (int j = i + 1; j < indexes.length; j++) {
-          indexes[j] = current.getDimension(
-                  query.getDimensions().get(j).getOutputName()).size() - 1;
-        }
-        return true;
-      }
-    }
     // Results
+
     if (queryResultsIterator.hasNext()) {
-      current = queryResultsIterator.next();
-      indexes = new int[query.getDimensions().size()];
-      for (int i = 0; i < query.getDimensions().size(); i++) {
-        DimensionSpec ds = query.getDimensions().get(i);
-        indexes[i] = current.getDimension(ds.getOutputName()).size() - 1;
+      final Row row = queryResultsIterator.next();
+      if (row instanceof MapBasedRow) {
+        currentRow = (MapBasedRow) row;
+        return true;
+      } else {
+        throw new RuntimeException("don't know how to deal with Row type " + row.getClass());
       }
-      return true;
     }
     return false;
   }
@@ -147,19 +149,23 @@ public class DruidGroupByQueryRecordReader
   public DruidWritable getCurrentValue() throws IOException, InterruptedException {
     // Create new value
     DruidWritable value = new DruidWritable();
+    final Map<String, Object> event = currentRow.getEvent();
+    value.getValue().putAll(event);
     // 1) The timestamp column
-    value.getValue().put(DruidStorageHandlerUtils.DEFAULT_TIMESTAMP_COLUMN, current.getTimestamp().getMillis());
+    value.getValue().put(DruidStorageHandlerUtils.DEFAULT_TIMESTAMP_COLUMN, currentRow.getTimestamp().getMillis());
     // 2) The dimension columns
-    for (int i = 0; i < query.getDimensions().size(); i++) {
+
+
+    /*for (int i = 0; i < query.getDimensions().size(); i++) {
       DimensionSpec ds = query.getDimensions().get(i);
-      List<String> dims = current.getDimension(ds.getOutputName());
+      List<String> dims = currentRow.getDimension(ds.getOutputName());
       if (dims.size() == 0) {
         // NULL value for dimension
         value.getValue().put(ds.getOutputName(), null);
       } else {
         int pos = dims.size() - indexes[i] - 1;
         Object val;
-        switch (dimensionTypes[i].getPrimitiveCategory()) {
+        switch (dimensionTypes.get(i).getPrimitiveCategory()) {
           case TIMESTAMP:
             // FLOOR extraction function
             val = ISODateTimeFormat.dateTimeParser().parseMillis((String) dims.get(pos));
@@ -179,21 +185,21 @@ public class DruidGroupByQueryRecordReader
     for (AggregatorFactory af : query.getAggregatorSpecs()) {
       switch (extractors[counter++]) {
         case FLOAT:
-          value.getValue().put(af.getName(), current.getFloatMetric(af.getName()));
+          value.getValue().put(af.getName(), currentRow.getFloatMetric(af.getName()));
           break;
         case LONG:
-          value.getValue().put(af.getName(), current.getLongMetric(af.getName()));
+          value.getValue().put(af.getName(), currentRow.getLongMetric(af.getName()));
           break;
       case DOUBLE:
-          value.getValue().put(af.getName(), current.getDoubleMetric(af.getName()));
+          value.getValue().put(af.getName(), currentRow.getDoubleMetric(af.getName()));
           break;
       }
     }
     // 4) The post-aggregation columns
     for (PostAggregator pa : query.getPostAggregatorSpecs()) {
       assert extractors[counter++] == Extract.FLOAT;
-      value.getValue().put(pa.getName(), current.getFloatMetric(pa.getName()));
-    }
+      value.getValue().put(pa.getName(), currentRow.getFloatMetric(pa.getName()));
+    }*/
     return value;
   }
 
@@ -203,11 +209,13 @@ public class DruidGroupByQueryRecordReader
       // Update value
       value.getValue().clear();
       // 1) The timestamp column
-      value.getValue().put(DruidStorageHandlerUtils.DEFAULT_TIMESTAMP_COLUMN, current.getTimestamp().getMillis());
+      value.getValue().put(DruidStorageHandlerUtils.DEFAULT_TIMESTAMP_COLUMN, currentRow.getTimestamp().getMillis());
       // 2) The dimension columns
-      for (int i = 0; i < query.getDimensions().size(); i++) {
+      value.getValue().putAll(currentRow.getEvent());
+
+     /* for (int i = 0; i < query.getDimensions().size(); i++) {
         DimensionSpec ds = query.getDimensions().get(i);
-        List<String> dims = current.getDimension(ds.getOutputName());
+        List<String> dims = currentRow.getDimension(ds.getOutputName());
         if (dims.size() == 0) {
           // NULL value for dimension
           value.getValue().put(ds.getOutputName(), null);
@@ -234,21 +242,21 @@ public class DruidGroupByQueryRecordReader
       for (AggregatorFactory af : query.getAggregatorSpecs()) {
         switch (extractors[counter++]) {
         case FLOAT:
-          value.getValue().put(af.getName(), current.getFloatMetric(af.getName()));
+          value.getValue().put(af.getName(), currentRow.getFloatMetric(af.getName()));
           break;
         case LONG:
-          value.getValue().put(af.getName(), current.getLongMetric(af.getName()));
+          value.getValue().put(af.getName(), currentRow.getLongMetric(af.getName()));
           break;
         case DOUBLE:
-          value.getValue().put(af.getName(), current.getDoubleMetric(af.getName()));
+          value.getValue().put(af.getName(), currentRow.getDoubleMetric(af.getName()));
           break;
         }
       }
       // 4) The post-aggregation columns
       for (PostAggregator pa : query.getPostAggregatorSpecs()) {
         assert extractors[counter++] == Extract.FLOAT;
-        value.getValue().put(pa.getName(), current.getFloatMetric(pa.getName()));
-      }
+        value.getValue().put(pa.getName(), currentRow.getFloatMetric(pa.getName()));
+      }*/
       return true;
     }
     return false;
@@ -257,12 +265,6 @@ public class DruidGroupByQueryRecordReader
   @Override
   public float getProgress() throws IOException {
     return queryResultsIterator.hasNext() ? 0 : 1;
-  }
-
-  private enum Extract {
-    FLOAT,
-    LONG,
-    DOUBLE
   }
 
 }
