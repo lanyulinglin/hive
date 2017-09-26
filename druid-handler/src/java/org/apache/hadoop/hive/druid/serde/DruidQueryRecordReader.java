@@ -76,7 +76,7 @@ public abstract class DruidQueryRecordReader<T extends BaseQuery<R>, R extends C
   /**
    * Query that Druid executes.
    */
-  protected T query;
+  protected Query query;
 
   /**
    * Query results as a streaming iterator.
@@ -102,8 +102,7 @@ public abstract class DruidQueryRecordReader<T extends BaseQuery<R>, R extends C
     // Smile mapper is used to read query results that are serilized as binary instead of json
     this.smileMapper = Preconditions.checkNotNull(smileMapper, "Smile Mapper can not be null");
     // Create query
-    this.query = this.mapper.readerFor(Query.class)
-            .readValue(Preconditions.checkNotNull(hiveDruidSplit.getDruidQuery()));
+    this.query = this.mapper.readValue(Preconditions.checkNotNull(hiveDruidSplit.getDruidQuery()), Query.class);
     Preconditions.checkNotNull(query);
     this.resultsType = getResultTypeDef();
     this.httpClient = Preconditions.checkNotNull(httpClient, "need Http Client");
@@ -172,7 +171,7 @@ public abstract class DruidQueryRecordReader<T extends BaseQuery<R>, R extends C
     private final ObjectMapper mapper;
     private final JavaType typeRef;
     private final Future<InputStream> future;
-    private final Query<T> query;
+    private final Query query;
     private final String url;
 
     public JsonParserIterator(ObjectMapper mapper,
@@ -235,7 +234,7 @@ public abstract class DruidQueryRecordReader<T extends BaseQuery<R>, R extends C
           if (is == null) {
             throw  new IOException(String.format("query[%s] url[%s] timed out", query, url));
           } else {
-            jp = mapper.getFactory().createParser(is);
+            jp = mapper.getFactory().createParser(is).configure(JsonParser.Feature.AUTO_CLOSE_SOURCE, true);
           }
           final JsonToken nextToken = jp.nextToken();
           if (nextToken == JsonToken.START_OBJECT) {
@@ -263,9 +262,7 @@ public abstract class DruidQueryRecordReader<T extends BaseQuery<R>, R extends C
     @Override
     public void close() throws IOException
     {
-      if (jp != null) {
-        jp.close();
-      }
+      CloseQuietly.close(jp);
     }
   }
 
