@@ -108,6 +108,7 @@ public class DruidGroupByQueryRecordReader
       final Row row = queryResultsIterator.next();
       if (row instanceof MapBasedRow) {
         currentRow = (MapBasedRow) row;
+        //@TODO move this out of here to org.apache.hadoop.hive.druid.serde.DruidSerDe
         currentEvent = Maps.transformEntries(currentRow.getEvent(),
                 (key, value1) -> {
                   if (timeExtractionFields.contains(key)) {
