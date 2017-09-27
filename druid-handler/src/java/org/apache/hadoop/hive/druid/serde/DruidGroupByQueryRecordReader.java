@@ -18,9 +18,9 @@
 package org.apache.hadoop.hive.druid.serde;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JavaType;
@@ -42,6 +42,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.druid.data.input.Row;
 import io.druid.query.groupby.GroupByQuery;
 import org.joda.time.format.ISODateTimeFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.hadoop.hive.druid.serde.DruidSerDeUtils.ISO_TIME_FORMAT;
 
@@ -53,6 +55,7 @@ public class DruidGroupByQueryRecordReader
   private final static TypeReference<Row> TYPE_REFERENCE = new TypeReference<Row>() {
   };
 
+  private static final Logger LOG = LoggerFactory.getLogger(DruidGroupByQueryRecordReader.class);
   private MapBasedRow currentRow;
 
   private List<String> timeExtractionFields = Lists.newArrayList();
@@ -94,6 +97,13 @@ public class DruidGroupByQueryRecordReader
     List<DimensionSpec> extractionDimensionSpecList = dimensionSpecList.stream()
             .filter(dimensionSpecs -> dimensionSpecs instanceof ExtractionDimensionSpec)
             .collect(Collectors.toList());
+     extractionDimensionSpecList.stream().forEach(
+            new Consumer<DimensionSpec>() {
+              @Override
+              public void accept(DimensionSpec dimensionSpec) {
+                LOG.info("List of dimspec" + dimensionSpec.toString());
+              }
+            });
     extractionDimensionSpecList.stream().forEach(dimensionSpec -> {
       ExtractionDimensionSpec extractionDimensionSpec = (ExtractionDimensionSpec) dimensionSpec;
       if (extractionDimensionSpec.getExtractionFn() instanceof TimeFormatExtractionFn) {
@@ -107,6 +117,10 @@ public class DruidGroupByQueryRecordReader
       }
     });
 
+    LOG.info("timeextrats");
+    timeExtractionFields.stream().forEach(System.out::println);
+    LOG.info("intX");
+    intFormattedTimeExtractionFields.stream().forEach(System.out::println);
   }
 
  /* private void initExtractors() throws IOException {
@@ -172,6 +186,7 @@ public class DruidGroupByQueryRecordReader
     DruidWritable value = new DruidWritable();
     final Map<String, Object> event = Maps.transformEntries(currentRow.getEvent(),
             (key, value1) -> {
+      LOG.info("key is " + key);
               if (timeExtractionFields.contains(key)) {
                 return ISODateTimeFormat.dateTimeParser().parseMillis((String) value1);
               }
