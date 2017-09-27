@@ -20,7 +20,6 @@ package org.apache.hadoop.hive.druid.serde;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JavaType;
@@ -61,22 +60,11 @@ public class DruidGroupByQueryRecordReader
 
   private List<String> timeExtractionFields = Lists.newArrayList();
   private List<String> intFormattedTimeExtractionFields = Lists.newArrayList();
-/*
-  // Grouping dimensions can have different types if we are grouping using an
-  // extraction function
-  private List<PrimitiveTypeInfo> dimensionTypes;
-
-  // Row objects returned by GroupByQuery have different access paths depending on
-  // whether the result for the metric is a Float or a Long, thus we keep track
-  // using these converters
-  private ImmutableList<Extract> extractors;
-*/
 
   @Override
   public void initialize(InputSplit split, Configuration conf) throws IOException {
     super.initialize(split, conf);
     initDimensionTypes();
-    /*initExtractors();*/
   }
 
   @Override
@@ -85,7 +73,6 @@ public class DruidGroupByQueryRecordReader
   ) throws IOException {
     super.initialize(split, conf, mapper, smileMapper, httpClient);
     initDimensionTypes();
-    /*initExtractors();*/
   }
 
   @Override
@@ -94,17 +81,11 @@ public class DruidGroupByQueryRecordReader
   }
 
   private void initDimensionTypes() throws IOException {
+    //@TODO move this out of here to org.apache.hadoop.hive.druid.serde.DruidSerDe
     List<DimensionSpec> dimensionSpecList = ((GroupByQuery) query).getDimensions();
     List<DimensionSpec> extractionDimensionSpecList = dimensionSpecList.stream()
             .filter(dimensionSpecs -> dimensionSpecs instanceof ExtractionDimensionSpec)
             .collect(Collectors.toList());
-     extractionDimensionSpecList.stream().forEach(
-            new Consumer<DimensionSpec>() {
-              @Override
-              public void accept(DimensionSpec dimensionSpec) {
-                LOG.info("List of dimspec" + dimensionSpec.toString());
-              }
-            });
     extractionDimensionSpecList.stream().forEach(dimensionSpec -> {
       ExtractionDimensionSpec extractionDimensionSpec = (ExtractionDimensionSpec) dimensionSpec;
       if (extractionDimensionSpec.getExtractionFn() instanceof TimeFormatExtractionFn) {
@@ -117,48 +98,7 @@ public class DruidGroupByQueryRecordReader
         }
       }
     });
-
-    LOG.info("timeextrats");
-    timeExtractionFields.stream().forEach(System.out::println);
-    LOG.info("intX");
-    intFormattedTimeExtractionFields.stream().forEach(System.out::println);
   }
-
- /* private void initExtractors() throws IOException {
-
-    List<Extract> aggregatorExtractors = Lists.transform(query.getAggregatorSpecs(),
-            new Function<AggregatorFactory, Extract>() {
-              @Nullable
-              @Override
-              public Extract apply(@Nullable AggregatorFactory aggregatorFactory
-              ) {
-                switch (aggregatorFactory.getTypeName().toUpperCase()) {
-                case DruidSerDeUtils.FLOAT_TYPE:
-                  return Extract.FLOAT;
-                case DruidSerDeUtils.LONG_TYPE:
-                  return Extract.LONG;
-                case DruidSerDeUtils.DOUBLE_TYPE:
-                  return Extract.DOUBLE;
-                }
-                throw new RuntimeException("Type [" + aggregatorFactory.getTypeName().toUpperCase()
-                        + "] not supported");
-              }
-            }
-    );*/
-
-    /*List<Extract> postaggregateExtractor = Lists.transform(query.getPostAggregatorSpecs(),
-            new Function<PostAggregator, Extract>() {
-              @Nullable
-              @Override
-              public Extract apply(@Nullable PostAggregator postAggregator) {
-                return Extract.FLOAT;
-              }
-            }
-    );
-
-    extractors = new ImmutableList.Builder<Extract>().addAll(aggregatorExtractors).addAll(postaggregateExtractor).build();
-
-  }*/
 
   @Override
   public boolean nextKeyValue() {
@@ -170,7 +110,6 @@ public class DruidGroupByQueryRecordReader
         currentRow = (MapBasedRow) row;
         currentEvent = Maps.transformEntries(currentRow.getEvent(),
                 (key, value1) -> {
-                  LOG.info("key is " + key);
                   if (timeExtractionFields.contains(key)) {
                     return ISODateTimeFormat.dateTimeParser().parseMillis((String) value1);
                   }
@@ -182,7 +121,7 @@ public class DruidGroupByQueryRecordReader
         );
         return true;
       } else {
-        throw new RuntimeException("don't know how to deal with Row type " + row.getClass());
+        throw new IllegalArgumentException("don't know how to deal with Row type " + row.getClass());
       }
     }
     return false;
@@ -197,56 +136,10 @@ public class DruidGroupByQueryRecordReader
   public DruidWritable getCurrentValue() throws IOException, InterruptedException {
     // Create new value
     DruidWritable value = new DruidWritable();
-    value.getValue().putAll(currentEvent);
     // 1) The timestamp column
     value.getValue().put(DruidStorageHandlerUtils.DEFAULT_TIMESTAMP_COLUMN, currentRow.getTimestamp().getMillis());
     // 2) The dimension columns
-
-
-    /*for (int i = 0; i < query.getDimensions().size(); i++) {
-      DimensionSpec ds = query.getDimensions().get(i);
-      List<String> dims = currentRow.getDimension(ds.getOutputName());
-      if (dims.size() == 0) {
-        // NULL value for dimension
-        value.getValue().put(ds.getOutputName(), null);
-      } else {
-        int pos = dims.size() - indexes[i] - 1;
-        Object val;
-        switch (dimensionTypes.get(i).getPrimitiveCategory()) {
-          case TIMESTAMP:
-            // FLOOR extraction function
-            val = ISODateTimeFormat.dateTimeParser().parseMillis((String) dims.get(pos));
-            break;
-          case INT:
-            // EXTRACT extraction function
-            val = Integer.valueOf((String) dims.get(pos));
-            break;
-          default:
-            val = dims.get(pos);
-        }
-        value.getValue().put(ds.getOutputName(), val);
-      }
-    }
-    int counter = 0;
-    // 3) The aggregation columns
-    for (AggregatorFactory af : query.getAggregatorSpecs()) {
-      switch (extractors[counter++]) {
-        case FLOAT:
-          value.getValue().put(af.getName(), currentRow.getFloatMetric(af.getName()));
-          break;
-        case LONG:
-          value.getValue().put(af.getName(), currentRow.getLongMetric(af.getName()));
-          break;
-      case DOUBLE:
-          value.getValue().put(af.getName(), currentRow.getDoubleMetric(af.getName()));
-          break;
-      }
-    }
-    // 4) The post-aggregation columns
-    for (PostAggregator pa : query.getPostAggregatorSpecs()) {
-      assert extractors[counter++] == Extract.FLOAT;
-      value.getValue().put(pa.getName(), currentRow.getFloatMetric(pa.getName()));
-    }*/
+    value.getValue().putAll(currentEvent);
     return value;
   }
 
@@ -259,51 +152,6 @@ public class DruidGroupByQueryRecordReader
       value.getValue().put(DruidStorageHandlerUtils.DEFAULT_TIMESTAMP_COLUMN, currentRow.getTimestamp().getMillis());
       // 2) The dimension columns
       value.getValue().putAll(currentEvent);
-
-     /* for (int i = 0; i < query.getDimensions().size(); i++) {
-        DimensionSpec ds = query.getDimensions().get(i);
-        List<String> dims = currentRow.getDimension(ds.getOutputName());
-        if (dims.size() == 0) {
-          // NULL value for dimension
-          value.getValue().put(ds.getOutputName(), null);
-        } else {
-          int pos = dims.size() - indexes[i] - 1;
-          Object val;
-          switch (dimensionTypes[i].getPrimitiveCategory()) {
-            case TIMESTAMP:
-              // FLOOR extraction function
-              val = ISODateTimeFormat.dateTimeParser().parseMillis((String) dims.get(pos));
-              break;
-            case INT:
-              // EXTRACT extraction function
-              val = Integer.valueOf((String) dims.get(pos));
-              break;
-            default:
-              val = dims.get(pos);
-          }
-          value.getValue().put(ds.getOutputName(), val);
-        }
-      }
-      int counter = 0;
-      // 3) The aggregation columns
-      for (AggregatorFactory af : query.getAggregatorSpecs()) {
-        switch (extractors[counter++]) {
-        case FLOAT:
-          value.getValue().put(af.getName(), currentRow.getFloatMetric(af.getName()));
-          break;
-        case LONG:
-          value.getValue().put(af.getName(), currentRow.getLongMetric(af.getName()));
-          break;
-        case DOUBLE:
-          value.getValue().put(af.getName(), currentRow.getDoubleMetric(af.getName()));
-          break;
-        }
-      }
-      // 4) The post-aggregation columns
-      for (PostAggregator pa : query.getPostAggregatorSpecs()) {
-        assert extractors[counter++] == Extract.FLOAT;
-        value.getValue().put(pa.getName(), currentRow.getFloatMetric(pa.getName()));
-      }*/
       return true;
     }
     return false;
