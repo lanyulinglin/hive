@@ -57,6 +57,7 @@ public class DruidGroupByQueryRecordReader
 
   private static final Logger LOG = LoggerFactory.getLogger(DruidGroupByQueryRecordReader.class);
   private MapBasedRow currentRow;
+  private Map<String, Object> currentEvent;
 
   private List<String> timeExtractionFields = Lists.newArrayList();
   private List<String> intFormattedTimeExtractionFields = Lists.newArrayList();
@@ -167,6 +168,18 @@ public class DruidGroupByQueryRecordReader
       final Row row = queryResultsIterator.next();
       if (row instanceof MapBasedRow) {
         currentRow = (MapBasedRow) row;
+        currentEvent = Maps.transformEntries(currentRow.getEvent(),
+                (key, value1) -> {
+                  LOG.info("key is " + key);
+                  if (timeExtractionFields.contains(key)) {
+                    return ISODateTimeFormat.dateTimeParser().parseMillis((String) value1);
+                  }
+                  if (intFormattedTimeExtractionFields.contains(key)) {
+                    return Integer.valueOf((String) value1);
+                  }
+                  return value1;
+                }
+        );
         return true;
       } else {
         throw new RuntimeException("don't know how to deal with Row type " + row.getClass());
@@ -184,19 +197,7 @@ public class DruidGroupByQueryRecordReader
   public DruidWritable getCurrentValue() throws IOException, InterruptedException {
     // Create new value
     DruidWritable value = new DruidWritable();
-    final Map<String, Object> event = Maps.transformEntries(currentRow.getEvent(),
-            (key, value1) -> {
-      LOG.info("key is " + key);
-              if (timeExtractionFields.contains(key)) {
-                return ISODateTimeFormat.dateTimeParser().parseMillis((String) value1);
-              }
-              if (intFormattedTimeExtractionFields.contains(key)) {
-                return Integer.valueOf((String) value1);
-              }
-              return value1;
-            }
-    );
-    value.getValue().putAll(event);
+    value.getValue().putAll(currentEvent);
     // 1) The timestamp column
     value.getValue().put(DruidStorageHandlerUtils.DEFAULT_TIMESTAMP_COLUMN, currentRow.getTimestamp().getMillis());
     // 2) The dimension columns
@@ -257,7 +258,7 @@ public class DruidGroupByQueryRecordReader
       // 1) The timestamp column
       value.getValue().put(DruidStorageHandlerUtils.DEFAULT_TIMESTAMP_COLUMN, currentRow.getTimestamp().getMillis());
       // 2) The dimension columns
-      value.getValue().putAll(currentRow.getEvent());
+      value.getValue().putAll(currentEvent);
 
      /* for (int i = 0; i < query.getDimensions().size(); i++) {
         DimensionSpec ds = query.getDimensions().get(i);
