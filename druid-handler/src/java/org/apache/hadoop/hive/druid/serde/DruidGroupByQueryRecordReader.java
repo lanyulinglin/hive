@@ -18,12 +18,19 @@
 package org.apache.hadoop.hive.druid.serde;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Maps;
 import com.metamx.http.client.HttpClient;
 import io.druid.data.input.MapBasedRow;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.ExtractionDimensionSpec;
+import io.druid.query.extraction.TimeFormatExtractionFn;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.druid.DruidStorageHandlerUtils;
 import org.apache.hadoop.io.NullWritable;
@@ -33,7 +40,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 
 import io.druid.data.input.Row;
 import io.druid.query.groupby.GroupByQuery;
+import org.joda.time.format.ISODateTimeFormat;
 
+import static org.apache.hadoop.hive.druid.serde.DruidSerDeUtils.ISO_TIME_FORMAT;
 
 /**
  * Record reader for results for Druid GroupByQuery.
@@ -45,6 +54,8 @@ public class DruidGroupByQueryRecordReader
 
   private MapBasedRow currentRow;
 
+  private List<String> timeExtractionFields = Arrays.asList();
+  private List<String> intFormattedTimeExtractionFields = Arrays.asList();
 /*
   // Grouping dimensions can have different types if we are grouping using an
   // extraction function
@@ -59,8 +70,8 @@ public class DruidGroupByQueryRecordReader
   @Override
   public void initialize(InputSplit split, Configuration conf) throws IOException {
     super.initialize(split, conf);
-    /*initDimensionTypes();
-    initExtractors();*/
+    initDimensionTypes();
+    /*initExtractors();*/
   }
 
   @Override
@@ -68,8 +79,8 @@ public class DruidGroupByQueryRecordReader
           ObjectMapper smileMapper, HttpClient httpClient
   ) throws IOException {
     super.initialize(split, conf, mapper, smileMapper, httpClient);
-    /*initDimensionTypes();
-    initExtractors();*/
+    initDimensionTypes();
+    /*initExtractors();*/
   }
 
   @Override
@@ -77,16 +88,25 @@ public class DruidGroupByQueryRecordReader
     return DruidStorageHandlerUtils.JSON_MAPPER.getTypeFactory().constructType(TYPE_REFERENCE);
   }
 
-  /*private void initDimensionTypes() throws IOException {
-    dimensionTypes = Lists.transform(query.getDimensions(), new Function<DimensionSpec, PrimitiveTypeInfo>() {
-      @Nullable
-      @Override
-      public PrimitiveTypeInfo apply(@Nullable DimensionSpec dimensionSpec
-      ) {
-        return DruidSerDeUtils.extractTypeFromDimension(dimensionSpec);
+  private void initDimensionTypes() throws IOException {
+    List<DimensionSpec> dimensionSpecList = ((GroupByQuery) query).getDimensions();
+    List<DimensionSpec> extractionDimensionSpecList = dimensionSpecList.stream()
+            .filter(dimensionSpecs -> dimensionSpecs instanceof ExtractionDimensionSpec)
+            .collect(Collectors.toList());
+    extractionDimensionSpecList.stream().forEach(dimensionSpec -> {
+      ExtractionDimensionSpec extractionDimensionSpec = (ExtractionDimensionSpec) dimensionSpec;
+      if (extractionDimensionSpec.getExtractionFn() instanceof TimeFormatExtractionFn) {
+        final TimeFormatExtractionFn timeFormatExtractionFn = (TimeFormatExtractionFn) extractionDimensionSpec
+                .getExtractionFn();
+        if (timeFormatExtractionFn  == null || timeFormatExtractionFn.getFormat().equals(ISO_TIME_FORMAT)) {
+          timeExtractionFields.add(extractionDimensionSpec.getOutputName());
+        } else {
+          intFormattedTimeExtractionFields.add(extractionDimensionSpec.getOutputName());
+        }
       }
     });
-  }*/
+
+  }
 
  /* private void initExtractors() throws IOException {
 
@@ -149,7 +169,17 @@ public class DruidGroupByQueryRecordReader
   public DruidWritable getCurrentValue() throws IOException, InterruptedException {
     // Create new value
     DruidWritable value = new DruidWritable();
-    final Map<String, Object> event = currentRow.getEvent();
+    final Map<String, Object> event = Maps.transformEntries(currentRow.getEvent(),
+            (key, value1) -> {
+              if (timeExtractionFields.contains(key)) {
+                return ISODateTimeFormat.dateTimeParser().parseMillis((String) value1);
+              }
+              if (intFormattedTimeExtractionFields.contains(key)) {
+                return Integer.valueOf((String) value1);
+              }
+              return value1;
+            }
+    );
     value.getValue().putAll(event);
     // 1) The timestamp column
     value.getValue().put(DruidStorageHandlerUtils.DEFAULT_TIMESTAMP_COLUMN, currentRow.getTimestamp().getMillis());
