@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.http.client.HttpClient;
 import io.druid.data.input.MapBasedRow;
@@ -54,8 +55,8 @@ public class DruidGroupByQueryRecordReader
 
   private MapBasedRow currentRow;
 
-  private List<String> timeExtractionFields = Arrays.asList();
-  private List<String> intFormattedTimeExtractionFields = Arrays.asList();
+  private List<String> timeExtractionFields = Lists.newArrayList();
+  private List<String> intFormattedTimeExtractionFields = Lists.newArrayList();
 /*
   // Grouping dimensions can have different types if we are grouping using an
   // extraction function
