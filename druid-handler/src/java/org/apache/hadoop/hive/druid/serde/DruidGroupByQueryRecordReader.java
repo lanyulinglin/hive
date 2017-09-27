@@ -41,8 +41,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.druid.data.input.Row;
 import io.druid.query.groupby.GroupByQuery;
 import org.joda.time.format.ISODateTimeFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static org.apache.hadoop.hive.druid.serde.DruidSerDeUtils.ISO_TIME_FORMAT;
 
@@ -54,7 +52,6 @@ public class DruidGroupByQueryRecordReader
   private final static TypeReference<Row> TYPE_REFERENCE = new TypeReference<Row>() {
   };
 
-  private static final Logger LOG = LoggerFactory.getLogger(DruidGroupByQueryRecordReader.class);
   private MapBasedRow currentRow;
   private Map<String, Object> currentEvent;
 

@@ -138,8 +138,10 @@ public class TestDruidSerDe {
 
   private byte[] tsQueryResults;
   private byte[] topNQueryResults;
-  private byte[] GBQueryResults;
+  private byte[] groupByQueryResults;
+  private byte[] groupByTimeExtractQueryResults;
   private byte[] selectQueryResults;
+  private byte[] groupByMonthExtractQueryResults;
 
 
   // Timeseries query results as records
@@ -336,7 +338,67 @@ public class TestDruidSerDe {
                   + "  } "
                   + " }]";
 
+  private static final String GB_TIME_EXTRACTIONS = "{\"queryType\":\"groupBy\",\"dataSource\":\"sample_datasource\","
+          + "\"granularity\":\"all\",\"dimensions\":"
+          + "[{\"type\":\"extraction\",\"dimension\":\"__time\",\"outputName\":\"extract\",\"extractionFn\":"
+          + "{\"type\":\"timeFormat\",\"format\":\"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\",\"timeZone\":\"UTC\"}}],"
+          + "\"limitSpec\":{\"type\":\"default\"},"
+          + "\"aggregations\":[{\"type\":\"count\",\"name\":\"$f1\"}],"
+          + "\"intervals\":[\"1900-01-01T00:00:00.000/3000-01-01T00:00:00.000\"]}";
+
+  private static final String GB_TIME_EXTRACTIONS_RESULTS = "[  "
+          + " {  "
+          + "  \"version\" : \"v1\",  "
+          + "  \"timestamp\" : \"2012-01-01T00:00:00.000Z\",  "
+          + "  \"event\" : {   "
+          + "   \"extract\" : \"2012-01-01T00:00:00.000Z\",   "
+          + "   \"$f1\" : 200"
+          + "  } "
+          + " },  "
+          + " {  "
+          + "  \"version\" : \"v1\",  "
+          + "  \"timestamp\" : \"2012-01-01T00:00:12.000Z\",  "
+          + "  \"event\" : {   "
+          + "   \"extract\" : \"2012-01-01T00:00:12.000Z\",   "
+          + "   \"$f1\" : 400"
+          + "  }  "
+          + " }]";
+
+  private static final String GB_MONTH_EXTRACTIONS_RESULTS = "[  "
+          + " {  "
+          + "  \"version\" : \"v1\",  "
+          + "  \"timestamp\" : \"2012-01-01T00:00:00.000Z\",  "
+          + "  \"event\" : {   "
+          + "   \"extract_month\" : \"01\",   "
+          + "   \"$f1\" : 200"
+          + "  } "
+          + " },  "
+          + " {  "
+          + "  \"version\" : \"v1\",  "
+          + "  \"timestamp\" : \"2012-01-01T00:00:12.000Z\",  "
+          + "  \"event\" : {   "
+          + "   \"extract_month\" : \"01\",   "
+          + "   \"$f1\" : 400"
+          + "  }  "
+          + " }]";
+
+
+  private final static String GB_MONTH_EXTRACTIONS = "{\"queryType\":\"groupBy\",\"dataSource\":\"sample_datasource\","
+          + "\"granularity\":\"all\","
+          + "\"dimensions\":[{\"type\":\"extraction\",\"dimension\":\"__time\",\"outputName\":\"extract_month\","
+          + "\"extractionFn\":{\"type\":\"timeFormat\",\"format\":\"M\",\"timeZone\":\"UTC\",\"locale\":\"en-US\"}}],"
+          + "\"limitSpec\":{\"type\":\"default\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"$f1\"}],"
+          + "\"intervals\":[\"1900-01-01T00:00:00.000/3000-01-01T00:00:00.000\"]}";
+
   // GroupBy query results as records
+  private static final Object[][] GROUP_BY_QUERY_EXTRACTION_RESULTS_RECORDS = new Object[][] {
+          new Object[] { new TimestampWritable(new Timestamp(1325376000000L)),
+                  new TimestampWritable(new Timestamp(1325376000000L)),
+                  new LongWritable(200) },
+          new Object[] { new TimestampWritable(new Timestamp(1325376012000L)), new TimestampWritable(new Timestamp(1325376012000L)),
+                  new LongWritable(400) }
+  };
+
   private static final Object[][] GROUP_BY_QUERY_RESULTS_RECORDS = new Object[][] {
           new Object[] { new TimestampWritable(new Timestamp(1325376000000L)), new Text("India"),
                   new Text("phone"), new LongWritable(88), new DoubleWritable(29.91233453),
@@ -344,6 +406,14 @@ public class TestDruidSerDe {
           new Object[] { new TimestampWritable(new Timestamp(1325376012000L)), new Text("Spain"),
                   new Text("pc"), new LongWritable(16), new DoubleWritable(172.93494959),
                   new FloatWritable(6.333333F) }
+  };
+
+  private static final Object[][] GB_MONTH_EXTRACTION_RESULTS_RECORDS = new Object[][] {
+          new Object[] { new TimestampWritable(new Timestamp(1325376000000L)),
+                  new IntWritable(1),
+                  new LongWritable(200) },
+          new Object[] { new TimestampWritable(new Timestamp(1325376012000L)), new IntWritable(1),
+                  new LongWritable(400) }
   };
 
   // GroupBy query results as records (types defined by metastore)
@@ -512,10 +582,18 @@ public class TestDruidSerDe {
             .writeValueAsBytes(DruidStorageHandlerUtils.JSON_MAPPER.readerFor(
                     new TypeReference<List<Result<TopNResultValue>>>() {
                     }).readValue(TOPN_QUERY_RESULTS));
-    GBQueryResults = DruidStorageHandlerUtils.SMILE_MAPPER
+    groupByQueryResults = DruidStorageHandlerUtils.SMILE_MAPPER
             .writeValueAsBytes(DruidStorageHandlerUtils.JSON_MAPPER.readerFor(
                     new TypeReference<List<Row>>() {
                     }).readValue(GROUP_BY_QUERY_RESULTS));
+    groupByTimeExtractQueryResults = DruidStorageHandlerUtils.SMILE_MAPPER
+            .writeValueAsBytes(DruidStorageHandlerUtils.JSON_MAPPER.readerFor(
+                    new TypeReference<List<Row>>() {
+                    }).readValue(GB_TIME_EXTRACTIONS_RESULTS));
+    groupByMonthExtractQueryResults = DruidStorageHandlerUtils.SMILE_MAPPER
+            .writeValueAsBytes(DruidStorageHandlerUtils.JSON_MAPPER.readerFor(
+                    new TypeReference<List<Row>>() {
+                    }).readValue(GB_MONTH_EXTRACTIONS_RESULTS));
     selectQueryResults = DruidStorageHandlerUtils.SMILE_MAPPER
             .writeValueAsBytes(DruidStorageHandlerUtils.JSON_MAPPER.readerFor(
                     new TypeReference<List<Result<SelectResultValue>>>() {
@@ -558,14 +636,25 @@ public class TestDruidSerDe {
     tbl = createPropertiesQuery("sample_datasource", Query.GROUP_BY, GROUP_BY_QUERY);
     SerDeUtils.initializeSerDe(serDe, conf, tbl, null);
     deserializeQueryResults(serDe, Query.GROUP_BY, GROUP_BY_QUERY,
-            GBQueryResults, GROUP_BY_QUERY_RESULTS_RECORDS
+            groupByQueryResults, GROUP_BY_QUERY_RESULTS_RECORDS
     );
     // GroupBy query (simulating column types from metastore)
     tbl.setProperty(serdeConstants.LIST_COLUMNS, GROUP_BY_COLUMN_NAMES);
     tbl.setProperty(serdeConstants.LIST_COLUMN_TYPES, GROUP_BY_COLUMN_TYPES);
     SerDeUtils.initializeSerDe(serDe, conf, tbl, null);
     deserializeQueryResults(serDe, Query.GROUP_BY, GROUP_BY_QUERY,
-            GBQueryResults, GROUP_BY_QUERY_RESULTS_RECORDS_2
+            groupByQueryResults, GROUP_BY_QUERY_RESULTS_RECORDS_2
+    );
+    tbl = createPropertiesQuery("sample_datasource", Query.GROUP_BY, GB_TIME_EXTRACTIONS);
+    SerDeUtils.initializeSerDe(serDe, conf, tbl, null);
+    deserializeQueryResults(serDe, Query.GROUP_BY, GB_TIME_EXTRACTIONS,
+            groupByTimeExtractQueryResults, GROUP_BY_QUERY_EXTRACTION_RESULTS_RECORDS
+    );
+
+    tbl = createPropertiesQuery("sample_datasource", Query.GROUP_BY, GB_MONTH_EXTRACTIONS);
+    SerDeUtils.initializeSerDe(serDe, conf, tbl, null);
+    deserializeQueryResults(serDe, Query.GROUP_BY, GB_MONTH_EXTRACTIONS,
+            groupByMonthExtractQueryResults, GB_MONTH_EXTRACTION_RESULTS_RECORDS
     );
     // Select query
     tbl = createPropertiesQuery("wikipedia", Query.SELECT, SELECT_QUERY);
