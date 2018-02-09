@@ -255,17 +255,18 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
         );
 
         if (currentOpenSegment != null) {
-          if (currentOpenSegment.getShardSpec().getPartitionNum() != partitionNumber) {
+          if (currentOpenSegment.getShardSpec().getPartitionNum() != partitionNumber
+              || !currentOpenSegment.getInterval().equals(interval)) {
             pushSegments(ImmutableList.of(currentOpenSegment));
             currentOpenSegment = new SegmentIdentifier(dataSchema.getDataSource(), interval,
                 tuningConfig.getVersioningPolicy().getVersion(interval),
-                new LinearShardSpec(Math.toIntExact(partitionNumber))
+                new LinearShardSpec(partitionNumber)
             );
           }
         } else if (currentOpenSegment == null) {
           currentOpenSegment = new SegmentIdentifier(dataSchema.getDataSource(), interval,
               tuningConfig.getVersioningPolicy().getVersion(interval),
-              new LinearShardSpec(Math.toIntExact(partitionNumber))
+              new LinearShardSpec(partitionNumber)
           );
 
         }
