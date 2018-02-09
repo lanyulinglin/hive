@@ -17,9 +17,6 @@
  */
 package org.apache.hadoop.hive.ql.optimizer;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hive.conf.Constants;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -77,6 +74,9 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.parquet.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -200,13 +200,13 @@ public class SortedDynPartitionTimeGranularityOptimizer extends Transform {
       final List<Integer> sortNullOrder;
       //Order matters, assuming later that __time_granularity comes first then __druidPartitionKey
       if (targetShardsPerGranularity > 0) {
-        keyPositions = ImmutableList.of(granularityKeyPos, partitionKeyPos);
-        sortOrder = ImmutableList.of(1, 1); // asc
-        sortNullOrder = ImmutableList.of(0, 0); // nulls first
+        keyPositions = Lists.newArrayList(granularityKeyPos, partitionKeyPos);
+        sortOrder = Lists.newArrayList(1, 1); // asc
+        sortNullOrder = Lists.newArrayList(0, 0); // nulls first
       } else {
-        keyPositions = ImmutableList.of(granularityKeyPos);
-        sortOrder = ImmutableList.of(1); // asc
-        sortNullOrder = ImmutableList.of(0); // nulls first
+        keyPositions = Lists.newArrayList(granularityKeyPos);
+        sortOrder = Lists.newArrayList(1); // asc
+        sortNullOrder = Lists.newArrayList(0); // nulls first
       }
       ReduceSinkOperator rsOp = getReduceSinkOp(keyPositions, sortOrder,
           sortNullOrder, allRSCols, granularitySelOp);
@@ -367,17 +367,17 @@ public class SortedDynPartitionTimeGranularityOptimizer extends Transform {
             new ExprNodeConstantDesc(TypeInfoFactory.intTypeInfo, targetShardsPerGranularity);
         final ExprNodeGenericFuncDesc randomFn = ExprNodeGenericFuncDesc
             .newInstance(new GenericUDFBridge("rand", false, UDFRand.class.getName()),
-                ImmutableList.of()
+                Lists.newArrayList()
             );
 
         final ExprNodeGenericFuncDesc random = ExprNodeGenericFuncDesc.newInstance(
-            new GenericUDFFloor(), ImmutableList.of(ExprNodeGenericFuncDesc
+            new GenericUDFFloor(), Lists.newArrayList(ExprNodeGenericFuncDesc
                 .newInstance(new GenericUDFOPDivide(),
-                    ImmutableList.of(new ExprNodeConstantDesc(TypeInfoFactory.doubleTypeInfo, 1.0), randomFn)
+                    Lists.newArrayList(new ExprNodeConstantDesc(TypeInfoFactory.doubleTypeInfo, 1.0), randomFn)
                 )));
         final ExprNodeGenericFuncDesc randModMax = ExprNodeGenericFuncDesc
             .newInstance(new GenericUDFOPMod(),
-                ImmutableList.of(random, targetNumShardDescNode)
+                Lists.newArrayList(random, targetNumShardDescNode)
             );
         descs.add(randModMax);
         colNames.add(Constants.DRUID_SHARD_KEY_COL_NAME);
@@ -447,7 +447,7 @@ public class SortedDynPartitionTimeGranularityOptimizer extends Transform {
       List<FieldSchema> valFields = PlanUtils.getFieldSchemasFromColumnList(valCols,
           valColNames, 0, "");
       final TableDesc valueTable = PlanUtils.getReduceValueTableDesc(valFields);
-      List<List<Integer>> distinctColumnIndices = ImmutableList.of();
+      List<List<Integer>> distinctColumnIndices = Lists.newArrayList();
 
       // Number of reducers is set to default (-1)
       final ReduceSinkDesc rsConf = new ReduceSinkDesc(keyCols, keyCols.size(), valCols,
