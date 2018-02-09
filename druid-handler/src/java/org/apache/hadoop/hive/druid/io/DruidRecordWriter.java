@@ -242,7 +242,7 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
     final long truncatedTime =
         (long) record.getValue().get(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME);
     final int partitionNumber = Math.toIntExact(
-        (long) record.getValue().getOrDefault(Constants.DRUID_SHARD_KEY_COL_NAME, -1));
+        (long) record.getValue().getOrDefault(Constants.DRUID_SHARD_KEY_COL_NAME, -1l));
     final InputRow inputRow = new MapBasedInputRow(timestamp,
         dataSchema.getParser().getParseSpec().getDimensionsSpec().getDimensionNames(),
         record.getValue()
