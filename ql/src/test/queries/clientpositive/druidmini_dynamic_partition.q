@@ -1,3 +1,24 @@
+CREATE TABLE druid_partitioned_table_0
+        STORED BY 'org.apache.hadoop.hive.druid.DruidStorageHandler'
+        TBLPROPERTIES (
+        "druid.segment.granularity" = "HOUR",
+        "druid.query.granularity" = "MINUTE",
+        "druid.segment.targetShardPerGranularity" = "0"
+        )
+        AS
+        SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
+          cstring1,
+          cstring2,
+          cdouble,
+          cfloat,
+          ctinyint,
+          csmallint,
+          cint,
+          cbigint,
+          cboolean1,
+          cboolean2
+          FROM alltypesorc where ctimestamp1 IS NOT NULL;
+
 EXPLAIN CREATE TABLE druid_partitioned_table
         STORED BY 'org.apache.hadoop.hive.druid.DruidStorageHandler'
         TBLPROPERTIES (
