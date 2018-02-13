@@ -3,7 +3,7 @@ CREATE TABLE druid_partitioned_table_0
         TBLPROPERTIES (
         "druid.segment.granularity" = "HOUR",
         "druid.query.granularity" = "MINUTE",
-        "druid.segment.targetShardPerGranularity" = "0"
+        "druid.segment.targetShardsPerGranularity" = "0"
         )
         AS
         SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
@@ -24,7 +24,7 @@ EXPLAIN CREATE TABLE druid_partitioned_table
         TBLPROPERTIES (
         "druid.segment.granularity" = "HOUR",
         "druid.query.granularity" = "MINUTE",
-        "druid.segment.targetShardPerGranularity" = "6"
+        "druid.segment.targetShardsPerGranularity" = "6"
         )
         AS
         SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
@@ -47,7 +47,7 @@ STORED BY 'org.apache.hadoop.hive.druid.DruidStorageHandler'
 TBLPROPERTIES (
 "druid.segment.granularity" = "HOUR",
 "druid.query.granularity" = "MINUTE",
-"druid.segment.targetShardPerGranularity" = "6"
+"druid.segment.targetShardsPerGranularity" = "6"
 )
 AS
 SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
