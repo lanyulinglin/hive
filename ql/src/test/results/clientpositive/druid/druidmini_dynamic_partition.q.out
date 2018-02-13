@@ -224,15 +224,15 @@ POSTHOOK: Lineage: druid_partitioned_table.csmallint SIMPLE [(alltypesorc)alltyp
 POSTHOOK: Lineage: druid_partitioned_table.cstring1 SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cstring1, type:string, comment:null), ]
 POSTHOOK: Lineage: druid_partitioned_table.cstring2 SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cstring2, type:string, comment:null), ]
 POSTHOOK: Lineage: druid_partitioned_table.ctinyint SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:ctinyint, type:tinyint, comment:null), ]
-PREHOOK: query: SELECT count(*)  FROM druid_partitioned_table
+PREHOOK: query: SELECT sum(cfloat)  FROM druid_partitioned_table
 PREHOOK: type: QUERY
 PREHOOK: Input: default@druid_partitioned_table
 #### A masked pattern was here ####
-POSTHOOK: query: SELECT count(*)  FROM druid_partitioned_table
+POSTHOOK: query: SELECT sum(cfloat)  FROM druid_partitioned_table
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@druid_partitioned_table
 #### A masked pattern was here ####
-6148
+-39590.246
 PREHOOK: query: SELECT floor_hour(cast(`ctimestamp1` as timestamp with local time zone)) as `__time`,
           cstring1,
           cstring2,
@@ -394,15 +394,15 @@ SELECT cast (`ctimestamp2` as timestamp with local time zone) as `__time`,
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@alltypesorc
 POSTHOOK: Output: default@druid_partitioned_table
-PREHOOK: query: SELECT  count(*)  FROM druid_partitioned_table
+PREHOOK: query: SELECT  sum(cfloat)  FROM druid_partitioned_table
 PREHOOK: type: QUERY
 PREHOOK: Input: default@druid_partitioned_table
 #### A masked pattern was here ####
-POSTHOOK: query: SELECT  count(*)  FROM druid_partitioned_table
+POSTHOOK: query: SELECT  sum(cfloat)  FROM druid_partitioned_table
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@druid_partitioned_table
 #### A masked pattern was here ####
-12246
+-46301.883
 PREHOOK: query: EXPLAIN INSERT OVERWRITE TABLE druid_partitioned_table
   SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
     cstring1,
@@ -524,15 +524,89 @@ POSTHOOK: query: INSERT OVERWRITE TABLE druid_partitioned_table
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@alltypesorc
 POSTHOOK: Output: default@druid_partitioned_table
-PREHOOK: query: SELECT  count(*)  FROM druid_partitioned_table
+PREHOOK: query: SELECT  sum(cfloat)  FROM druid_partitioned_table
 PREHOOK: type: QUERY
 PREHOOK: Input: default@druid_partitioned_table
 #### A masked pattern was here ####
-POSTHOOK: query: SELECT  count(*)  FROM druid_partitioned_table
+POSTHOOK: query: SELECT  sum(cfloat)  FROM druid_partitioned_table
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@druid_partitioned_table
 #### A masked pattern was here ####
-6147
+-39590.246
+PREHOOK: query: CREATE TABLE druid_max_size_partition
+        STORED BY 'org.apache.hadoop.hive.druid.DruidStorageHandler'
+        TBLPROPERTIES (
+        "druid.segment.granularity" = "HOUR",
+        "druid.query.granularity" = "MINUTE"
+        )
+        AS
+        SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
+          cstring1,
+          cstring2,
+          cdouble,
+          cfloat,
+          ctinyint,
+          csmallint,
+          cint,
+          cbigint,
+          cboolean1,
+          cboolean2
+          FROM alltypesorc where ctimestamp1 IS NOT NULL
+PREHOOK: type: CREATETABLE_AS_SELECT
+PREHOOK: Input: default@alltypesorc
+PREHOOK: Output: database:default
+PREHOOK: Output: default@druid_max_size_partition
+POSTHOOK: query: CREATE TABLE druid_max_size_partition
+        STORED BY 'org.apache.hadoop.hive.druid.DruidStorageHandler'
+        TBLPROPERTIES (
+        "druid.segment.granularity" = "HOUR",
+        "druid.query.granularity" = "MINUTE"
+        )
+        AS
+        SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
+          cstring1,
+          cstring2,
+          cdouble,
+          cfloat,
+          ctinyint,
+          csmallint,
+          cint,
+          cbigint,
+          cboolean1,
+          cboolean2
+          FROM alltypesorc where ctimestamp1 IS NOT NULL
+POSTHOOK: type: CREATETABLE_AS_SELECT
+POSTHOOK: Input: default@alltypesorc
+POSTHOOK: Output: database:default
+POSTHOOK: Output: default@druid_max_size_partition
+POSTHOOK: Lineage: druid_max_size_partition.__time EXPRESSION [(alltypesorc)alltypesorc.FieldSchema(name:ctimestamp1, type:timestamp, comment:null), ]
+POSTHOOK: Lineage: druid_max_size_partition.cbigint SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cbigint, type:bigint, comment:null), ]
+POSTHOOK: Lineage: druid_max_size_partition.cboolean1 SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cboolean1, type:boolean, comment:null), ]
+POSTHOOK: Lineage: druid_max_size_partition.cboolean2 SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cboolean2, type:boolean, comment:null), ]
+POSTHOOK: Lineage: druid_max_size_partition.cdouble SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cdouble, type:double, comment:null), ]
+POSTHOOK: Lineage: druid_max_size_partition.cfloat SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cfloat, type:float, comment:null), ]
+POSTHOOK: Lineage: druid_max_size_partition.cint SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cint, type:int, comment:null), ]
+POSTHOOK: Lineage: druid_max_size_partition.csmallint SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:csmallint, type:smallint, comment:null), ]
+POSTHOOK: Lineage: druid_max_size_partition.cstring1 SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cstring1, type:string, comment:null), ]
+POSTHOOK: Lineage: druid_max_size_partition.cstring2 SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cstring2, type:string, comment:null), ]
+POSTHOOK: Lineage: druid_max_size_partition.ctinyint SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:ctinyint, type:tinyint, comment:null), ]
+PREHOOK: query: SELECT  sum(cfloat)  FROM druid_max_size_partition
+PREHOOK: type: QUERY
+PREHOOK: Input: default@druid_max_size_partition
+#### A masked pattern was here ####
+POSTHOOK: query: SELECT  sum(cfloat)  FROM druid_max_size_partition
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@druid_max_size_partition
+#### A masked pattern was here ####
+-39590.246
+PREHOOK: query: DROP TABLE druid_partitioned_table_0
+PREHOOK: type: DROPTABLE
+PREHOOK: Input: default@druid_partitioned_table_0
+PREHOOK: Output: default@druid_partitioned_table_0
+POSTHOOK: query: DROP TABLE druid_partitioned_table_0
+POSTHOOK: type: DROPTABLE
+POSTHOOK: Input: default@druid_partitioned_table_0
+POSTHOOK: Output: default@druid_partitioned_table_0
 PREHOOK: query: DROP TABLE druid_partitioned_table
 PREHOOK: type: DROPTABLE
 PREHOOK: Input: default@druid_partitioned_table
@@ -541,3 +615,11 @@ POSTHOOK: query: DROP TABLE druid_partitioned_table
 POSTHOOK: type: DROPTABLE
 POSTHOOK: Input: default@druid_partitioned_table
 POSTHOOK: Output: default@druid_partitioned_table
+PREHOOK: query: DROP TABLE druid_max_size_partition
+PREHOOK: type: DROPTABLE
+PREHOOK: Input: default@druid_max_size_partition
+PREHOOK: Output: default@druid_max_size_partition
+POSTHOOK: query: DROP TABLE druid_max_size_partition
+POSTHOOK: type: DROPTABLE
+POSTHOOK: Input: default@druid_max_size_partition
+POSTHOOK: Output: default@druid_max_size_partition

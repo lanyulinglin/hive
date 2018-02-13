@@ -63,7 +63,7 @@ SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
   cboolean2
   FROM alltypesorc where ctimestamp1 IS NOT NULL;
 
-SELECT count(*)  FROM druid_partitioned_table ;
+SELECT sum(cfloat)  FROM druid_partitioned_table ;
 
 SELECT floor_hour(cast(`ctimestamp1` as timestamp with local time zone)) as `__time`,
           cstring1,
@@ -107,7 +107,7 @@ SELECT cast (`ctimestamp2` as timestamp with local time zone) as `__time`,
   cboolean2
   FROM alltypesorc where ctimestamp2 IS NOT NULL;
 
-SELECT  count(*)  FROM druid_partitioned_table ;
+SELECT  sum(cfloat)  FROM druid_partitioned_table ;
 
 EXPLAIN INSERT OVERWRITE TABLE druid_partitioned_table
   SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
@@ -138,6 +138,33 @@ INSERT OVERWRITE TABLE druid_partitioned_table
     cboolean2
     FROM alltypesorc where ctimestamp1 IS NOT NULL;
 
-  SELECT  count(*)  FROM druid_partitioned_table ;
+  SELECT  sum(cfloat)  FROM druid_partitioned_table ;
 
+
+set hive.druid.indexer.partition.size.max=10;
+
+CREATE TABLE druid_max_size_partition
+        STORED BY 'org.apache.hadoop.hive.druid.DruidStorageHandler'
+        TBLPROPERTIES (
+        "druid.segment.granularity" = "HOUR",
+        "druid.query.granularity" = "MINUTE"
+        )
+        AS
+        SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
+          cstring1,
+          cstring2,
+          cdouble,
+          cfloat,
+          ctinyint,
+          csmallint,
+          cint,
+          cbigint,
+          cboolean1,
+          cboolean2
+          FROM alltypesorc where ctimestamp1 IS NOT NULL;
+
+SELECT  sum(cfloat)  FROM druid_max_size_partition ;
+
+  DROP TABLE druid_partitioned_table_0;
   DROP TABLE druid_partitioned_table;
+  DROP TABLE druid_max_size_partition;
