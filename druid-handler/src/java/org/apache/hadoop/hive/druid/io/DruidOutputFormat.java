@@ -196,7 +196,8 @@ public class DruidOutputFormat<K, V> implements HiveOutputFormat<K, DruidWritabl
     final InputRowParser inputRowParser = new MapInputRowParser(new TimeAndDimsParseSpec(
             new TimestampSpec(DruidStorageHandlerUtils.DEFAULT_TIMESTAMP_COLUMN, "auto", null),
             new DimensionsSpec(dimensions, Lists
-                .newArrayList(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME
+                .newArrayList(Constants.DRUID_TIMESTAMP_GRANULARITY_COL_NAME,
+                    Constants.DRUID_SHARD_KEY_COL_NAME
                 ), null
             )
     ));
