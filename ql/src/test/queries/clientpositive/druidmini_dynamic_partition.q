@@ -63,7 +63,7 @@ SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
   cboolean2
   FROM alltypesorc where ctimestamp1 IS NOT NULL;
 
-SELECT *  FROM druid_partitioned_table order by `__time`, cstring2 NULLS LAST, cstring1 NULLS LAST LIMIT 10 ;
+SELECT count(*)  FROM druid_partitioned_table ;
 
 SELECT floor_hour(cast(`ctimestamp1` as timestamp with local time zone)) as `__time`,
           cstring1,
@@ -107,36 +107,7 @@ SELECT cast (`ctimestamp2` as timestamp with local time zone) as `__time`,
   cboolean2
   FROM alltypesorc where ctimestamp2 IS NOT NULL;
 
-SELECT *  FROM druid_partitioned_table order by `__time`, cstring2 DESC NULLS LAST, cstring1 DESC NULLS LAST LIMIT 10 ;
-
-SELECT * from (
-SELECT floor_hour(cast (`ctimestamp2` as timestamp with local time zone)) as `__time`,
-  cstring1,
-  cstring2,
-  cdouble,
-  cfloat,
-  ctinyint,
-  csmallint,
-  cint,
-  cbigint,
-  cboolean1,
-  cboolean2
-  FROM alltypesorc where ctimestamp2 IS NOT NULL
-UNION ALL
-SELECT  floor_hour(cast(`ctimestamp1` as timestamp with local time zone)) as `__time`,
-          cstring1,
-          cstring2,
-          cdouble,
-          cfloat,
-          ctinyint,
-          csmallint,
-          cint,
-          cbigint,
-          cboolean1,
-          cboolean2
-          FROM alltypesorc where ctimestamp1 IS NOT NULL
-          ) unionResult
-order by `__time`, cstring2 DESC NULLS LAST, cstring1 DESC NULLS LAST LIMIT 10 ;
+SELECT  count(*)  FROM druid_partitioned_table ;
 
 EXPLAIN INSERT OVERWRITE TABLE druid_partitioned_table
   SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
@@ -167,6 +138,6 @@ INSERT OVERWRITE TABLE druid_partitioned_table
     cboolean2
     FROM alltypesorc where ctimestamp1 IS NOT NULL;
 
-  SELECT *  FROM druid_partitioned_table order by `__time`, cstring2 DESC NULLS LAST, cstring1 DESC NULLS LAST LIMIT 10 ;
+  SELECT  count(*)  FROM druid_partitioned_table ;
 
   DROP TABLE druid_partitioned_table;

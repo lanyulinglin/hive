@@ -1,9 +1,68 @@
+PREHOOK: query: CREATE TABLE druid_partitioned_table_0
+        STORED BY 'org.apache.hadoop.hive.druid.DruidStorageHandler'
+        TBLPROPERTIES (
+        "druid.segment.granularity" = "HOUR",
+        "druid.query.granularity" = "MINUTE",
+        "druid.segment.targetShardsPerGranularity" = "0"
+        )
+        AS
+        SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
+          cstring1,
+          cstring2,
+          cdouble,
+          cfloat,
+          ctinyint,
+          csmallint,
+          cint,
+          cbigint,
+          cboolean1,
+          cboolean2
+          FROM alltypesorc where ctimestamp1 IS NOT NULL
+PREHOOK: type: CREATETABLE_AS_SELECT
+PREHOOK: Input: default@alltypesorc
+PREHOOK: Output: database:default
+PREHOOK: Output: default@druid_partitioned_table_0
+POSTHOOK: query: CREATE TABLE druid_partitioned_table_0
+        STORED BY 'org.apache.hadoop.hive.druid.DruidStorageHandler'
+        TBLPROPERTIES (
+        "druid.segment.granularity" = "HOUR",
+        "druid.query.granularity" = "MINUTE",
+        "druid.segment.targetShardsPerGranularity" = "0"
+        )
+        AS
+        SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
+          cstring1,
+          cstring2,
+          cdouble,
+          cfloat,
+          ctinyint,
+          csmallint,
+          cint,
+          cbigint,
+          cboolean1,
+          cboolean2
+          FROM alltypesorc where ctimestamp1 IS NOT NULL
+POSTHOOK: type: CREATETABLE_AS_SELECT
+POSTHOOK: Input: default@alltypesorc
+POSTHOOK: Output: database:default
+POSTHOOK: Output: default@druid_partitioned_table_0
+POSTHOOK: Lineage: druid_partitioned_table_0.__time EXPRESSION [(alltypesorc)alltypesorc.FieldSchema(name:ctimestamp1, type:timestamp, comment:null), ]
+POSTHOOK: Lineage: druid_partitioned_table_0.cbigint SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cbigint, type:bigint, comment:null), ]
+POSTHOOK: Lineage: druid_partitioned_table_0.cboolean1 SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cboolean1, type:boolean, comment:null), ]
+POSTHOOK: Lineage: druid_partitioned_table_0.cboolean2 SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cboolean2, type:boolean, comment:null), ]
+POSTHOOK: Lineage: druid_partitioned_table_0.cdouble SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cdouble, type:double, comment:null), ]
+POSTHOOK: Lineage: druid_partitioned_table_0.cfloat SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cfloat, type:float, comment:null), ]
+POSTHOOK: Lineage: druid_partitioned_table_0.cint SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cint, type:int, comment:null), ]
+POSTHOOK: Lineage: druid_partitioned_table_0.csmallint SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:csmallint, type:smallint, comment:null), ]
+POSTHOOK: Lineage: druid_partitioned_table_0.cstring1 SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cstring1, type:string, comment:null), ]
+POSTHOOK: Lineage: druid_partitioned_table_0.cstring2 SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cstring2, type:string, comment:null), ]
+POSTHOOK: Lineage: druid_partitioned_table_0.ctinyint SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:ctinyint, type:tinyint, comment:null), ]
 PREHOOK: query: EXPLAIN CREATE TABLE druid_partitioned_table
         STORED BY 'org.apache.hadoop.hive.druid.DruidStorageHandler'
         TBLPROPERTIES (
         "druid.segment.granularity" = "HOUR",
         "druid.query.granularity" = "MINUTE",
-        "druid.segment.targetShardPerGranularity" = "6"
+        "druid.segment.targetShardsPerGranularity" = "6"
         )
         AS
         SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
@@ -24,7 +83,7 @@ POSTHOOK: query: EXPLAIN CREATE TABLE druid_partitioned_table
         TBLPROPERTIES (
         "druid.segment.granularity" = "HOUR",
         "druid.query.granularity" = "MINUTE",
-        "druid.segment.targetShardPerGranularity" = "6"
+        "druid.segment.targetShardsPerGranularity" = "6"
         )
         AS
         SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
@@ -42,56 +101,61 @@ POSTHOOK: query: EXPLAIN CREATE TABLE druid_partitioned_table
 POSTHOOK: type: CREATETABLE_AS_SELECT
 STAGE DEPENDENCIES:
   Stage-1 is a root stage
+  Stage-2 depends on stages: Stage-1
+  Stage-4 depends on stages: Stage-2, Stage-0
+  Stage-3 depends on stages: Stage-4
   Stage-0 depends on stages: Stage-1
-  Stage-3 depends on stages: Stage-0
-  Stage-2 depends on stages: Stage-3
 
 STAGE PLANS:
   Stage: Stage-1
-    Map Reduce
-      Map Operator Tree:
-          TableScan
-            alias: alltypesorc
-            Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-            Filter Operator
-              predicate: ctimestamp1 is not null (type: boolean)
-              Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-              Select Operator
-                expressions: CAST( ctimestamp1 AS timestamp with local time zone) (type: timestamp with local time zone), cstring1 (type: string), cstring2 (type: string), cdouble (type: double), cfloat (type: float), ctinyint (type: tinyint), csmallint (type: smallint), cint (type: int), cbigint (type: bigint), cboolean1 (type: boolean), cboolean2 (type: boolean)
-                outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10
-                Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-                Select Operator
-                  expressions: _col0 (type: timestamp with local time zone), _col1 (type: string), _col2 (type: string), _col3 (type: double), _col4 (type: float), _col5 (type: tinyint), _col6 (type: smallint), _col7 (type: int), _col8 (type: bigint), _col9 (type: boolean), _col10 (type: boolean), floor_hour(CAST( GenericUDFEpochMilli(_col0) AS TIMESTAMP)) (type: timestamp), (floor((1.0 / rand())) % 6) (type: bigint)
-                  outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10, __time_granularity, __druid_extra_partition_key
-                  Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-                  Reduce Output Operator
-                    key expressions: __time_granularity (type: timestamp), __druid_extra_partition_key (type: bigint)
-                    sort order: ++
-                    Map-reduce partition columns: __time_granularity (type: timestamp), __druid_extra_partition_key (type: bigint)
-                    Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-                    value expressions: _col0 (type: timestamp with local time zone), _col1 (type: string), _col2 (type: string), _col3 (type: double), _col4 (type: float), _col5 (type: tinyint), _col6 (type: smallint), _col7 (type: int), _col8 (type: bigint), _col9 (type: boolean), _col10 (type: boolean)
-      Reduce Operator Tree:
-        Select Operator
-          expressions: VALUE._col0 (type: timestamp with local time zone), VALUE._col1 (type: string), VALUE._col2 (type: string), VALUE._col3 (type: double), VALUE._col4 (type: float), VALUE._col5 (type: tinyint), VALUE._col6 (type: smallint), VALUE._col7 (type: int), VALUE._col8 (type: bigint), VALUE._col9 (type: boolean), VALUE._col10 (type: boolean), KEY.__time_granularity (type: timestamp), KEY.__druid_extra_partition_key (type: bigint)
-          outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10, __time_granularity, __druid_extra_partition_key
-          Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-          File Output Operator
-            compressed: false
-            Dp Sort State: PARTITION_SORTED
-            Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-            table:
-                input format: org.apache.hadoop.hive.druid.io.DruidQueryBasedInputFormat
-                output format: org.apache.hadoop.hive.druid.io.DruidOutputFormat
-                serde: org.apache.hadoop.hive.druid.serde.DruidSerDe
-                name: default.druid_partitioned_table
-
-  Stage: Stage-0
-    Move Operator
-      files:
-          hdfs directory: true
+    Tez
 #### A masked pattern was here ####
+      Edges:
+        Reducer 2 <- Map 1 (SIMPLE_EDGE)
+#### A masked pattern was here ####
+      Vertices:
+        Map 1 
+            Map Operator Tree:
+                TableScan
+                  alias: alltypesorc
+                  Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                  Filter Operator
+                    predicate: ctimestamp1 is not null (type: boolean)
+                    Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                    Select Operator
+                      expressions: CAST( ctimestamp1 AS timestamp with local time zone) (type: timestamp with local time zone), cstring1 (type: string), cstring2 (type: string), cdouble (type: double), cfloat (type: float), ctinyint (type: tinyint), csmallint (type: smallint), cint (type: int), cbigint (type: bigint), cboolean1 (type: boolean), cboolean2 (type: boolean)
+                      outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10
+                      Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                      Select Operator
+                        expressions: _col0 (type: timestamp with local time zone), _col1 (type: string), _col2 (type: string), _col3 (type: double), _col4 (type: float), _col5 (type: tinyint), _col6 (type: smallint), _col7 (type: int), _col8 (type: bigint), _col9 (type: boolean), _col10 (type: boolean), floor_hour(CAST( GenericUDFEpochMilli(_col0) AS TIMESTAMP)) (type: timestamp), (floor((1.0 / rand())) % 6) (type: bigint)
+                        outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10, __time_granularity, __druid_extra_partition_key
+                        Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                        Reduce Output Operator
+                          key expressions: __time_granularity (type: timestamp), __druid_extra_partition_key (type: bigint)
+                          sort order: ++
+                          Map-reduce partition columns: __time_granularity (type: timestamp), __druid_extra_partition_key (type: bigint)
+                          Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                          value expressions: _col0 (type: timestamp with local time zone), _col1 (type: string), _col2 (type: string), _col3 (type: double), _col4 (type: float), _col5 (type: tinyint), _col6 (type: smallint), _col7 (type: int), _col8 (type: bigint), _col9 (type: boolean), _col10 (type: boolean)
+        Reducer 2 
+            Reduce Operator Tree:
+              Select Operator
+                expressions: VALUE._col0 (type: timestamp with local time zone), VALUE._col1 (type: string), VALUE._col2 (type: string), VALUE._col3 (type: double), VALUE._col4 (type: float), VALUE._col5 (type: tinyint), VALUE._col6 (type: smallint), VALUE._col7 (type: int), VALUE._col8 (type: bigint), VALUE._col9 (type: boolean), VALUE._col10 (type: boolean), KEY.__time_granularity (type: timestamp), KEY.__druid_extra_partition_key (type: bigint)
+                outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10, __time_granularity, __druid_extra_partition_key
+                Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                File Output Operator
+                  compressed: false
+                  Dp Sort State: PARTITION_SORTED
+                  Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                  table:
+                      input format: org.apache.hadoop.hive.druid.io.DruidQueryBasedInputFormat
+                      output format: org.apache.hadoop.hive.druid.io.DruidOutputFormat
+                      serde: org.apache.hadoop.hive.druid.serde.DruidSerDe
+                      name: default.druid_partitioned_table
 
-  Stage: Stage-3
+  Stage: Stage-2
+    Dependency Collection
+
+  Stage: Stage-4
       Create Table Operator:
         Create Table
           columns: __time timestamp with local time zone, cstring1 string, cstring2 string, cdouble double, cfloat float, ctinyint tinyint, csmallint smallint, cint int, cbigint bigint, cboolean1 boolean, cboolean2 boolean
@@ -100,18 +164,24 @@ STAGE PLANS:
           table properties:
             druid.query.granularity MINUTE
             druid.segment.granularity HOUR
-            druid.segment.targetShardPerGranularity 6
+            druid.segment.targetShardsPerGranularity 6
 
-  Stage: Stage-2
+  Stage: Stage-3
     Stats Work
       Basic Stats Work:
+
+  Stage: Stage-0
+    Move Operator
+      files:
+          hdfs directory: true
+          destination: hdfs://### HDFS PATH ###
 
 PREHOOK: query: CREATE TABLE druid_partitioned_table
 STORED BY 'org.apache.hadoop.hive.druid.DruidStorageHandler'
 TBLPROPERTIES (
 "druid.segment.granularity" = "HOUR",
 "druid.query.granularity" = "MINUTE",
-"druid.segment.targetShardPerGranularity" = "6"
+"druid.segment.targetShardsPerGranularity" = "6"
 )
 AS
 SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
@@ -135,7 +205,7 @@ STORED BY 'org.apache.hadoop.hive.druid.DruidStorageHandler'
 TBLPROPERTIES (
 "druid.segment.granularity" = "HOUR",
 "druid.query.granularity" = "MINUTE",
-"druid.segment.targetShardPerGranularity" = "6"
+"druid.segment.targetShardsPerGranularity" = "6"
 )
 AS
 SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
@@ -165,24 +235,15 @@ POSTHOOK: Lineage: druid_partitioned_table.csmallint SIMPLE [(alltypesorc)alltyp
 POSTHOOK: Lineage: druid_partitioned_table.cstring1 SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cstring1, type:string, comment:null), ]
 POSTHOOK: Lineage: druid_partitioned_table.cstring2 SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:cstring2, type:string, comment:null), ]
 POSTHOOK: Lineage: druid_partitioned_table.ctinyint SIMPLE [(alltypesorc)alltypesorc.FieldSchema(name:ctinyint, type:tinyint, comment:null), ]
-PREHOOK: query: SELECT *  FROM druid_partitioned_table order by `__time`, cstring2 NULLS LAST, cstring1 NULLS LAST LIMIT 10
+PREHOOK: query: SELECT count(*)  FROM druid_partitioned_table
 PREHOOK: type: QUERY
 PREHOOK: Input: default@druid_partitioned_table
-#### A masked pattern was here ####
-POSTHOOK: query: SELECT *  FROM druid_partitioned_table order by `__time`, cstring2 NULLS LAST, cstring1 NULLS LAST LIMIT 10
+PREHOOK: Output: hdfs://### HDFS PATH ###
+POSTHOOK: query: SELECT count(*)  FROM druid_partitioned_table
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@druid_partitioned_table
-#### A masked pattern was here ####
-1969-12-31 15:59:00.0 US/Pacific	NULL	0034fkcXMQI3	15601.0	-43.0	-43	15601	0	-223687300	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	00GNm	-200.0	58.0	58	-200	0	-432105022	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	00d5kr1wEB7evExG	15601.0	4.0	4	15601	0	-941884962	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	01K4E26vcs5288RJU1BhojGM	-200.0	-10.0	-10	-200	0	-715660733	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	01d74I25Tsr	-200.0	18.0	18	-200	0	-834070259	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	01hN4jkkm	-200.0	-45.0	-45	-200	0	1421418397	NULL	true
-1969-12-31 15:59:00.0 US/Pacific	NULL	020gtq4CLjybO3F40kpyXi	15601.0	30.0	30	15601	0	-1986754040	NULL	true
-1969-12-31 15:59:00.0 US/Pacific	NULL	023qmsVEWX3BDkav1I	-7196.0	3.0	3	-7196	0	-1668843486	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	041Ph15F	15601.0	-55.0	-55	15601	0	-1338667765	NULL	true
-1969-12-31 15:59:00.0 US/Pacific	NULL	047TAc3t6f6rU8M7Dk7Gh8	15601.0	-44.0	-44	15601	0	272368436	NULL	false
+POSTHOOK: Output: hdfs://### HDFS PATH ###
+6142
 PREHOOK: query: SELECT floor_hour(cast(`ctimestamp1` as timestamp with local time zone)) as `__time`,
           cstring1,
           cstring2,
@@ -197,7 +258,7 @@ PREHOOK: query: SELECT floor_hour(cast(`ctimestamp1` as timestamp with local tim
           FROM alltypesorc where ctimestamp1 IS NOT NULL order by `__time`, cstring2 DESC NULLS LAST, cstring1 DESC NULLS LAST LIMIT 10
 PREHOOK: type: QUERY
 PREHOOK: Input: default@alltypesorc
-#### A masked pattern was here ####
+PREHOOK: Output: hdfs://### HDFS PATH ###
 POSTHOOK: query: SELECT floor_hour(cast(`ctimestamp1` as timestamp with local time zone)) as `__time`,
           cstring1,
           cstring2,
@@ -212,7 +273,7 @@ POSTHOOK: query: SELECT floor_hour(cast(`ctimestamp1` as timestamp with local ti
           FROM alltypesorc where ctimestamp1 IS NOT NULL order by `__time`, cstring2 DESC NULLS LAST, cstring1 DESC NULLS LAST LIMIT 10
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@alltypesorc
-#### A masked pattern was here ####
+POSTHOOK: Output: hdfs://### HDFS PATH ###
 1969-12-31 15:00:00.0 US/Pacific	NULL	yx36UAT823Cm	-200.0	52.0	52	-200	NULL	2029007949	NULL	true
 1969-12-31 15:00:00.0 US/Pacific	NULL	yvcx4HYTT8tvAm6CNbXHaH	-7196.0	40.0	40	-7196	NULL	437984126	NULL	false
 1969-12-31 15:00:00.0 US/Pacific	NULL	ysho54gMb	15601.0	-22.0	-22	15601	NULL	1553802956	NULL	false
@@ -275,42 +336,49 @@ STAGE PLANS:
         Pre-Insert task
 
   Stage: Stage-3
-    Map Reduce
-      Map Operator Tree:
-          TableScan
-            alias: alltypesorc
-            Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-            Filter Operator
-              predicate: ctimestamp2 is not null (type: boolean)
-              Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
+    Tez
+#### A masked pattern was here ####
+      Edges:
+        Reducer 2 <- Map 1 (SIMPLE_EDGE)
+#### A masked pattern was here ####
+      Vertices:
+        Map 1 
+            Map Operator Tree:
+                TableScan
+                  alias: alltypesorc
+                  Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                  Filter Operator
+                    predicate: ctimestamp2 is not null (type: boolean)
+                    Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                    Select Operator
+                      expressions: CAST( ctimestamp2 AS timestamp with local time zone) (type: timestamp with local time zone), cstring1 (type: string), cstring2 (type: string), cdouble (type: double), cfloat (type: float), ctinyint (type: tinyint), csmallint (type: smallint), cint (type: int), cbigint (type: bigint), cboolean1 (type: boolean), cboolean2 (type: boolean)
+                      outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10
+                      Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                      Select Operator
+                        expressions: _col0 (type: timestamp with local time zone), _col1 (type: string), _col2 (type: string), _col3 (type: double), _col4 (type: float), _col5 (type: tinyint), _col6 (type: smallint), _col7 (type: int), _col8 (type: bigint), _col9 (type: boolean), _col10 (type: boolean), floor_hour(CAST( GenericUDFEpochMilli(_col0) AS TIMESTAMP)) (type: timestamp), (floor((1.0 / rand())) % 6) (type: bigint)
+                        outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10, __time_granularity, __druid_extra_partition_key
+                        Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                        Reduce Output Operator
+                          key expressions: __time_granularity (type: timestamp), __druid_extra_partition_key (type: bigint)
+                          sort order: ++
+                          Map-reduce partition columns: __time_granularity (type: timestamp), __druid_extra_partition_key (type: bigint)
+                          Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                          value expressions: _col0 (type: timestamp with local time zone), _col1 (type: string), _col2 (type: string), _col3 (type: double), _col4 (type: float), _col5 (type: tinyint), _col6 (type: smallint), _col7 (type: int), _col8 (type: bigint), _col9 (type: boolean), _col10 (type: boolean)
+        Reducer 2 
+            Reduce Operator Tree:
               Select Operator
-                expressions: CAST( ctimestamp2 AS timestamp with local time zone) (type: timestamp with local time zone), cstring1 (type: string), cstring2 (type: string), cdouble (type: double), cfloat (type: float), ctinyint (type: tinyint), csmallint (type: smallint), cint (type: int), cbigint (type: bigint), cboolean1 (type: boolean), cboolean2 (type: boolean)
-                outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10
-                Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-                Select Operator
-                  expressions: _col0 (type: timestamp with local time zone), _col1 (type: string), _col2 (type: string), _col3 (type: double), _col4 (type: float), _col5 (type: tinyint), _col6 (type: smallint), _col7 (type: int), _col8 (type: bigint), _col9 (type: boolean), _col10 (type: boolean), floor_hour(CAST( GenericUDFEpochMilli(_col0) AS TIMESTAMP)) (type: timestamp), (floor((1.0 / rand())) % 6) (type: bigint)
-                  outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10, __time_granularity, __druid_extra_partition_key
-                  Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-                  Reduce Output Operator
-                    key expressions: __time_granularity (type: timestamp), __druid_extra_partition_key (type: bigint)
-                    sort order: ++
-                    Map-reduce partition columns: __time_granularity (type: timestamp), __druid_extra_partition_key (type: bigint)
-                    Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-                    value expressions: _col0 (type: timestamp with local time zone), _col1 (type: string), _col2 (type: string), _col3 (type: double), _col4 (type: float), _col5 (type: tinyint), _col6 (type: smallint), _col7 (type: int), _col8 (type: bigint), _col9 (type: boolean), _col10 (type: boolean)
-      Reduce Operator Tree:
-        Select Operator
-          expressions: VALUE._col0 (type: timestamp with local time zone), VALUE._col1 (type: string), VALUE._col2 (type: string), VALUE._col3 (type: double), VALUE._col4 (type: float), VALUE._col5 (type: tinyint), VALUE._col6 (type: smallint), VALUE._col7 (type: int), VALUE._col8 (type: bigint), VALUE._col9 (type: boolean), VALUE._col10 (type: boolean), KEY.__time_granularity (type: timestamp), KEY.__druid_extra_partition_key (type: bigint)
-          outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10, __time_granularity, __druid_extra_partition_key
-          Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-          File Output Operator
-            compressed: false
-            Dp Sort State: PARTITION_SORTED
-            Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-            table:
-                input format: org.apache.hadoop.hive.druid.io.DruidQueryBasedInputFormat
-                output format: org.apache.hadoop.hive.druid.io.DruidOutputFormat
-                serde: org.apache.hadoop.hive.druid.serde.DruidSerDe
-                name: default.druid_partitioned_table
+                expressions: VALUE._col0 (type: timestamp with local time zone), VALUE._col1 (type: string), VALUE._col2 (type: string), VALUE._col3 (type: double), VALUE._col4 (type: float), VALUE._col5 (type: tinyint), VALUE._col6 (type: smallint), VALUE._col7 (type: int), VALUE._col8 (type: bigint), VALUE._col9 (type: boolean), VALUE._col10 (type: boolean), KEY.__time_granularity (type: timestamp), KEY.__druid_extra_partition_key (type: bigint)
+                outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10, __time_granularity, __druid_extra_partition_key
+                Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                File Output Operator
+                  compressed: false
+                  Dp Sort State: PARTITION_SORTED
+                  Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                  table:
+                      input format: org.apache.hadoop.hive.druid.io.DruidQueryBasedInputFormat
+                      output format: org.apache.hadoop.hive.druid.io.DruidOutputFormat
+                      serde: org.apache.hadoop.hive.druid.serde.DruidSerDe
+                      name: default.druid_partitioned_table
 
 PREHOOK: query: INSERT INTO TABLE druid_partitioned_table
 SELECT cast (`ctimestamp2` as timestamp with local time zone) as `__time`,
@@ -344,96 +412,15 @@ SELECT cast (`ctimestamp2` as timestamp with local time zone) as `__time`,
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@alltypesorc
 POSTHOOK: Output: default@druid_partitioned_table
-PREHOOK: query: SELECT *  FROM druid_partitioned_table order by `__time`, cstring2 DESC NULLS LAST, cstring1 DESC NULLS LAST LIMIT 10
+PREHOOK: query: SELECT  count(*)  FROM druid_partitioned_table
 PREHOOK: type: QUERY
 PREHOOK: Input: default@druid_partitioned_table
-#### A masked pattern was here ####
-POSTHOOK: query: SELECT *  FROM druid_partitioned_table order by `__time`, cstring2 DESC NULLS LAST, cstring1 DESC NULLS LAST LIMIT 10
+PREHOOK: Output: hdfs://### HDFS PATH ###
+POSTHOOK: query: SELECT  count(*)  FROM druid_partitioned_table
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@druid_partitioned_table
-#### A masked pattern was here ####
-1969-12-31 15:59:00.0 US/Pacific	NULL	yyt0S8WorA	-7196.0	35.0	35	-7196	0	1004273023	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	yx36UAT823Cm	-200.0	52.0	52	-200	0	2029007949	NULL	true
-1969-12-31 15:59:00.0 US/Pacific	NULL	yx36UAT823Cm	-200.0	52.0	52	-200	0	2029007949	NULL	true
-1969-12-31 15:59:00.0 US/Pacific	NULL	yvcx4HYTT8tvAm6CNbXHaH	-7196.0	40.0	40	-7196	0	437984126	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	yvcx4HYTT8tvAm6CNbXHaH	-7196.0	40.0	40	-7196	0	437984126	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	yvJN4b76R	-200.0	55.0	55	-200	0	180810790	NULL	true
-1969-12-31 15:59:00.0 US/Pacific	NULL	ytBjVwe7b	15601.0	41.0	41	15601	0	987132753	NULL	true
-1969-12-31 15:59:00.0 US/Pacific	NULL	ysho54gMb	15601.0	-22.0	-22	15601	0	1553802956	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	ysho54gMb	15601.0	-22.0	-22	15601	0	1553802956	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	yr665XitVg1	-7196.0	4.0	4	-7196	0	-1498229137	NULL	false
-PREHOOK: query: SELECT * from (
-SELECT floor_hour(cast (`ctimestamp2` as timestamp with local time zone)) as `__time`,
-  cstring1,
-  cstring2,
-  cdouble,
-  cfloat,
-  ctinyint,
-  csmallint,
-  cint,
-  cbigint,
-  cboolean1,
-  cboolean2
-  FROM alltypesorc where ctimestamp2 IS NOT NULL
-UNION ALL
-SELECT  floor_hour(cast(`ctimestamp1` as timestamp with local time zone)) as `__time`,
-          cstring1,
-          cstring2,
-          cdouble,
-          cfloat,
-          ctinyint,
-          csmallint,
-          cint,
-          cbigint,
-          cboolean1,
-          cboolean2
-          FROM alltypesorc where ctimestamp1 IS NOT NULL
-          ) unionResult
-order by `__time`, cstring2 DESC NULLS LAST, cstring1 DESC NULLS LAST LIMIT 10
-PREHOOK: type: QUERY
-PREHOOK: Input: default@alltypesorc
-#### A masked pattern was here ####
-POSTHOOK: query: SELECT * from (
-SELECT floor_hour(cast (`ctimestamp2` as timestamp with local time zone)) as `__time`,
-  cstring1,
-  cstring2,
-  cdouble,
-  cfloat,
-  ctinyint,
-  csmallint,
-  cint,
-  cbigint,
-  cboolean1,
-  cboolean2
-  FROM alltypesorc where ctimestamp2 IS NOT NULL
-UNION ALL
-SELECT  floor_hour(cast(`ctimestamp1` as timestamp with local time zone)) as `__time`,
-          cstring1,
-          cstring2,
-          cdouble,
-          cfloat,
-          ctinyint,
-          csmallint,
-          cint,
-          cbigint,
-          cboolean1,
-          cboolean2
-          FROM alltypesorc where ctimestamp1 IS NOT NULL
-          ) unionResult
-order by `__time`, cstring2 DESC NULLS LAST, cstring1 DESC NULLS LAST LIMIT 10
-POSTHOOK: type: QUERY
-POSTHOOK: Input: default@alltypesorc
-#### A masked pattern was here ####
-1969-12-31 15:00:00.0 US/Pacific	NULL	yyt0S8WorA	-7196.0	35.0	35	-7196	NULL	1004273023	NULL	false
-1969-12-31 15:00:00.0 US/Pacific	NULL	yx36UAT823Cm	-200.0	52.0	52	-200	NULL	2029007949	NULL	true
-1969-12-31 15:00:00.0 US/Pacific	NULL	yx36UAT823Cm	-200.0	52.0	52	-200	NULL	2029007949	NULL	true
-1969-12-31 15:00:00.0 US/Pacific	NULL	yvcx4HYTT8tvAm6CNbXHaH	-7196.0	40.0	40	-7196	NULL	437984126	NULL	false
-1969-12-31 15:00:00.0 US/Pacific	NULL	yvcx4HYTT8tvAm6CNbXHaH	-7196.0	40.0	40	-7196	NULL	437984126	NULL	false
-1969-12-31 15:00:00.0 US/Pacific	NULL	yvJN4b76R	-200.0	55.0	55	-200	NULL	180810790	NULL	true
-1969-12-31 15:00:00.0 US/Pacific	NULL	ytBjVwe7b	15601.0	41.0	41	15601	NULL	987132753	NULL	true
-1969-12-31 15:00:00.0 US/Pacific	NULL	ysho54gMb	15601.0	-22.0	-22	15601	NULL	1553802956	NULL	false
-1969-12-31 15:00:00.0 US/Pacific	NULL	ysho54gMb	15601.0	-22.0	-22	15601	NULL	1553802956	NULL	false
-1969-12-31 15:00:00.0 US/Pacific	NULL	yr665XitVg1	-7196.0	4.0	4	-7196	NULL	-1498229137	NULL	false
+POSTHOOK: Output: hdfs://### HDFS PATH ###
+12240
 PREHOOK: query: EXPLAIN INSERT OVERWRITE TABLE druid_partitioned_table
   SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
     cstring1,
@@ -486,42 +473,49 @@ STAGE PLANS:
         Pre-Insert task
 
   Stage: Stage-3
-    Map Reduce
-      Map Operator Tree:
-          TableScan
-            alias: alltypesorc
-            Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-            Filter Operator
-              predicate: ctimestamp1 is not null (type: boolean)
-              Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
+    Tez
+#### A masked pattern was here ####
+      Edges:
+        Reducer 2 <- Map 1 (SIMPLE_EDGE)
+#### A masked pattern was here ####
+      Vertices:
+        Map 1 
+            Map Operator Tree:
+                TableScan
+                  alias: alltypesorc
+                  Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                  Filter Operator
+                    predicate: ctimestamp1 is not null (type: boolean)
+                    Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                    Select Operator
+                      expressions: CAST( ctimestamp1 AS timestamp with local time zone) (type: timestamp with local time zone), cstring1 (type: string), cstring2 (type: string), cdouble (type: double), cfloat (type: float), ctinyint (type: tinyint), csmallint (type: smallint), cint (type: int), cbigint (type: bigint), cboolean1 (type: boolean), cboolean2 (type: boolean)
+                      outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10
+                      Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                      Select Operator
+                        expressions: _col0 (type: timestamp with local time zone), _col1 (type: string), _col2 (type: string), _col3 (type: double), _col4 (type: float), _col5 (type: tinyint), _col6 (type: smallint), _col7 (type: int), _col8 (type: bigint), _col9 (type: boolean), _col10 (type: boolean), floor_hour(CAST( GenericUDFEpochMilli(_col0) AS TIMESTAMP)) (type: timestamp), (floor((1.0 / rand())) % 6) (type: bigint)
+                        outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10, __time_granularity, __druid_extra_partition_key
+                        Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                        Reduce Output Operator
+                          key expressions: __time_granularity (type: timestamp), __druid_extra_partition_key (type: bigint)
+                          sort order: ++
+                          Map-reduce partition columns: __time_granularity (type: timestamp), __druid_extra_partition_key (type: bigint)
+                          Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                          value expressions: _col0 (type: timestamp with local time zone), _col1 (type: string), _col2 (type: string), _col3 (type: double), _col4 (type: float), _col5 (type: tinyint), _col6 (type: smallint), _col7 (type: int), _col8 (type: bigint), _col9 (type: boolean), _col10 (type: boolean)
+        Reducer 2 
+            Reduce Operator Tree:
               Select Operator
-                expressions: CAST( ctimestamp1 AS timestamp with local time zone) (type: timestamp with local time zone), cstring1 (type: string), cstring2 (type: string), cdouble (type: double), cfloat (type: float), ctinyint (type: tinyint), csmallint (type: smallint), cint (type: int), cbigint (type: bigint), cboolean1 (type: boolean), cboolean2 (type: boolean)
-                outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10
-                Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-                Select Operator
-                  expressions: _col0 (type: timestamp with local time zone), _col1 (type: string), _col2 (type: string), _col3 (type: double), _col4 (type: float), _col5 (type: tinyint), _col6 (type: smallint), _col7 (type: int), _col8 (type: bigint), _col9 (type: boolean), _col10 (type: boolean), floor_hour(CAST( GenericUDFEpochMilli(_col0) AS TIMESTAMP)) (type: timestamp), (floor((1.0 / rand())) % 6) (type: bigint)
-                  outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10, __time_granularity, __druid_extra_partition_key
-                  Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-                  Reduce Output Operator
-                    key expressions: __time_granularity (type: timestamp), __druid_extra_partition_key (type: bigint)
-                    sort order: ++
-                    Map-reduce partition columns: __time_granularity (type: timestamp), __druid_extra_partition_key (type: bigint)
-                    Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-                    value expressions: _col0 (type: timestamp with local time zone), _col1 (type: string), _col2 (type: string), _col3 (type: double), _col4 (type: float), _col5 (type: tinyint), _col6 (type: smallint), _col7 (type: int), _col8 (type: bigint), _col9 (type: boolean), _col10 (type: boolean)
-      Reduce Operator Tree:
-        Select Operator
-          expressions: VALUE._col0 (type: timestamp with local time zone), VALUE._col1 (type: string), VALUE._col2 (type: string), VALUE._col3 (type: double), VALUE._col4 (type: float), VALUE._col5 (type: tinyint), VALUE._col6 (type: smallint), VALUE._col7 (type: int), VALUE._col8 (type: bigint), VALUE._col9 (type: boolean), VALUE._col10 (type: boolean), KEY.__time_granularity (type: timestamp), KEY.__druid_extra_partition_key (type: bigint)
-          outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10, __time_granularity, __druid_extra_partition_key
-          Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-          File Output Operator
-            compressed: false
-            Dp Sort State: PARTITION_SORTED
-            Statistics: Num rows: 12288 Data size: 2641964 Basic stats: COMPLETE Column stats: NONE
-            table:
-                input format: org.apache.hadoop.hive.druid.io.DruidQueryBasedInputFormat
-                output format: org.apache.hadoop.hive.druid.io.DruidOutputFormat
-                serde: org.apache.hadoop.hive.druid.serde.DruidSerDe
-                name: default.druid_partitioned_table
+                expressions: VALUE._col0 (type: timestamp with local time zone), VALUE._col1 (type: string), VALUE._col2 (type: string), VALUE._col3 (type: double), VALUE._col4 (type: float), VALUE._col5 (type: tinyint), VALUE._col6 (type: smallint), VALUE._col7 (type: int), VALUE._col8 (type: bigint), VALUE._col9 (type: boolean), VALUE._col10 (type: boolean), KEY.__time_granularity (type: timestamp), KEY.__druid_extra_partition_key (type: bigint)
+                outputColumnNames: _col0, _col1, _col2, _col3, _col4, _col5, _col6, _col7, _col8, _col9, _col10, __time_granularity, __druid_extra_partition_key
+                Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                File Output Operator
+                  compressed: false
+                  Dp Sort State: PARTITION_SORTED
+                  Statistics: Num rows: 12288 Data size: 2601650 Basic stats: COMPLETE Column stats: COMPLETE
+                  table:
+                      input format: org.apache.hadoop.hive.druid.io.DruidQueryBasedInputFormat
+                      output format: org.apache.hadoop.hive.druid.io.DruidOutputFormat
+                      serde: org.apache.hadoop.hive.druid.serde.DruidSerDe
+                      name: default.druid_partitioned_table
 
 PREHOOK: query: INSERT OVERWRITE TABLE druid_partitioned_table
   SELECT cast (`ctimestamp1` as timestamp with local time zone) as `__time`,
@@ -555,24 +549,15 @@ POSTHOOK: query: INSERT OVERWRITE TABLE druid_partitioned_table
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@alltypesorc
 POSTHOOK: Output: default@druid_partitioned_table
-PREHOOK: query: SELECT *  FROM druid_partitioned_table order by `__time`, cstring2 DESC NULLS LAST, cstring1 DESC NULLS LAST LIMIT 10
+PREHOOK: query: SELECT  count(*)  FROM druid_partitioned_table
 PREHOOK: type: QUERY
 PREHOOK: Input: default@druid_partitioned_table
-#### A masked pattern was here ####
-POSTHOOK: query: SELECT *  FROM druid_partitioned_table order by `__time`, cstring2 DESC NULLS LAST, cstring1 DESC NULLS LAST LIMIT 10
+PREHOOK: Output: hdfs://### HDFS PATH ###
+POSTHOOK: query: SELECT  count(*)  FROM druid_partitioned_table
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@druid_partitioned_table
-#### A masked pattern was here ####
-1969-12-31 15:59:00.0 US/Pacific	NULL	yx36UAT823Cm	-200.0	52.0	52	-200	0	2029007949	NULL	true
-1969-12-31 15:59:00.0 US/Pacific	NULL	yvcx4HYTT8tvAm6CNbXHaH	-7196.0	40.0	40	-7196	0	437984126	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	ysho54gMb	15601.0	-22.0	-22	15601	0	1553802956	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	yqXw7J7	15601.0	44.0	44	15601	0	1265051089	NULL	true
-1969-12-31 15:59:00.0 US/Pacific	NULL	yfpFFQ0	15601.0	11.0	11	15601	0	11070716	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	ySl6tu66m72erf1	-200.0	-50.0	-50	-200	0	824529348	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	yPUM0wC54vq	15601.0	-8.0	-8	15601	0	1821279179	NULL	true
-1969-12-31 15:59:00.0 US/Pacific	NULL	yOgijYXi753GboFW7L1x65l	-7196.0	-34.0	-34	-7196	0	-1022931985	NULL	false
-1969-12-31 15:59:00.0 US/Pacific	NULL	yO7xKhbtrsBU147xuT0CF7Q	15601.0	47.0	47	15601	0	661404907	NULL	true
-1969-12-31 15:59:00.0 US/Pacific	NULL	yLB85lr145622oTRo	-200.0	-41.0	-41	-200	0	-260138227	NULL	true
+POSTHOOK: Output: hdfs://### HDFS PATH ###
+6145
 PREHOOK: query: DROP TABLE druid_partitioned_table
 PREHOOK: type: DROPTABLE
 PREHOOK: Input: default@druid_partitioned_table
