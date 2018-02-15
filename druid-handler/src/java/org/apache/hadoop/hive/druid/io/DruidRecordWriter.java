@@ -155,7 +155,7 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
                 tuningConfig.getVersioningPolicy().getVersion(interval),
                 new LinearShardSpec(currentOpenSegment.getShardSpec().getPartitionNum() + 1)
         );
-        pushSegments(Lists.newArrayList(currentOpenSegment));
+        pushAndDropSegments(Lists.newArrayList(currentOpenSegment));
         LOG.info("Creating new partition for segment {}, partition num {}",
                 retVal.getIdentifierAsString(), retVal.getShardSpec().getPartitionNum());
         currentOpenSegment = retVal;
@@ -168,14 +168,22 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
               tuningConfig.getVersioningPolicy().getVersion(interval),
               new LinearShardSpec(0)
       );
-      pushSegments(Lists.newArrayList(currentOpenSegment));
+      pushAndDropSegments(Lists.newArrayList(currentOpenSegment));
       LOG.info("Creating segment {}", retVal.getIdentifierAsString());
       currentOpenSegment = retVal;
       return retVal;
     }
   }
 
-  private void pushSegments(List<SegmentIdentifier> segmentsToPush) {
+  /**
+   * Persist and push segments data to Deep storage eg HDFS.
+   * This method will block on persisting and pushing of segments to deep Storage.
+   * This method will either push what ever is asked for or it will throw an exception
+   *
+   * @param segmentsToPush List of segments to Close, Push to Deep storage and then drop from Appenderator
+   *                       memory.
+   */
+  private void pushAndDropSegments(List<SegmentIdentifier> segmentsToPush) {
     try {
       SegmentsAndMetadata segmentsAndMetadata = appenderator
               .push(segmentsToPush, committerSupplier.get()).get();
@@ -257,7 +265,7 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
         if (currentOpenSegment != null) {
           if (currentOpenSegment.getShardSpec().getPartitionNum() != partitionNumber
               || !currentOpenSegment.getInterval().equals(interval)) {
-            pushSegments(ImmutableList.of(currentOpenSegment));
+            pushAndDropSegments(ImmutableList.of(currentOpenSegment));
             currentOpenSegment = new SegmentIdentifier(dataSchema.getDataSource(), interval,
                 tuningConfig.getVersioningPolicy().getVersion(interval),
                 new LinearShardSpec(partitionNumber)
@@ -293,7 +301,7 @@ public class DruidRecordWriter implements RecordWriter<NullWritable, DruidWritab
       if (abort == false) {
         final List<SegmentIdentifier> segmentsToPush = Lists.newArrayList();
         segmentsToPush.addAll(appenderator.getSegments());
-        pushSegments(segmentsToPush);
+        pushAndDropSegments(segmentsToPush);
       }
       appenderator.clear();
     } catch (InterruptedException e) {
